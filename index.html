@@ -3,131 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SalesTrack Pro</title>
+    <title>SalesTrack Pro | Full Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Library Tanpa Babel: Pasti Jalan di Semua HP -->
     <script src="https://unpkg.com/htm/preact/standalone.umd.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { -webkit-tap-highlight-color: transparent; font-family: sans-serif; }
+        body { -webkit-tap-highlight-color: transparent; font-family: 'Inter', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+        .tab-active { color: #4f46e5; border-top: 3px solid #4f46e5; }
     </style>
 </head>
 <body class="bg-slate-50">
     <div id="root"></div>
 
     <script>
-        // Menggunakan library Preact Standalone (Tanpa Build/Babel)
         const { html, render, useState, useEffect, useRef } = htmPreact;
 
-        const USERS = [
-            { id: "U01", email: "admin@sales.com", password: "admin123", name: "Hendra Wijaya", role: "admin", pos: "Manager HRD", div: "Pusat" },
-            { id: "U02", email: "sales@sales.com", password: "sales123", name: "Budi Pratama", role: "staff", pos: "Field Sales", div: "Jakarta" }
+        // --- DATA DEFAULT ---
+        const INITIAL_USERS = [
+            { id: "U01", email: "admin@sales.com", password: "admin123", name: "Hendra Manager", role: "admin", pos: "Sales Manager", div: "Pusat", phone: "0812345678", avatar: "https://i.pravatar.cc/150?u=U01" },
+            { id: "U02", email: "sales@sales.com", password: "sales123", name: "Budi Sales", role: "staff", pos: "Field Sales", div: "Jakarta", phone: "0877889900", avatar: "https://i.pravatar.cc/150?u=U02" }
         ];
 
         function App() {
-            const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('st_user')) || null);
-            const [tab, setTab] = useState('dash');
-            const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem('st_logs')) || []);
-            const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('st_tasks')) || [
-                { id: 101, title: "Kunjungan PT Maju", assigned: "U02", status: "Proses" },
-                { id: 102, title: "Laporan Mingguan", assigned: "U01", status: "Selesai" }
+            // State Utama (Persistence)
+            const [users, setUsers] = useState(() => JSON.parse(localStorage.getItem('st_users')) || INITIAL_USERS);
+            const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('st_curr')) || null);
+            const [attendance, setAttendance] = useState(() => JSON.parse(localStorage.getItem('st_att')) || []);
+            const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('st_tasks')) || []);
+            const [announcements, setAnnouncements] = useState(() => JSON.parse(localStorage.getItem('st_ann')) || [
+                { id: 1, title: "Target Juni", content: "Fokus ke area retail pasar.", date: "15/06/2024", author: "Hendra" }
             ]);
 
-            useEffect(() => {
-                localStorage.setItem('st_user', JSON.stringify(user));
-                localStorage.setItem('st_logs', JSON.stringify(logs));
-                localStorage.setItem('st_tasks', JSON.stringify(tasks));
-            }, [user, logs, tasks]);
+            // UI State
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [isRegistering, setIsRegistering] = useState(false);
 
-            if (!user) return html`<${Login} onLogin=${setUser} />`;
+            useEffect(() => {
+                localStorage.setItem('st_users', JSON.stringify(users));
+                localStorage.setItem('st_curr', JSON.stringify(currentUser));
+                localStorage.setItem('st_att', JSON.stringify(attendance));
+                localStorage.setItem('st_tasks', JSON.stringify(tasks));
+                localStorage.setItem('st_ann', JSON.stringify(announcements));
+            }, [users, currentUser, attendance, tasks, announcements]);
+
+            // --- AUTH LOGIC ---
+            if (!currentUser) {
+                return html`<${AuthPage} 
+                    users=${users} 
+                    setUsers=${setUsers} 
+                    onLogin=${setCurrentUser} 
+                    isReg=${isRegistering} 
+                    setReg=${setIsRegistering} 
+                />`;
+            }
 
             return html`
-                <div class="min-h-screen flex flex-col pb-24">
-                    <header class="bg-white p-5 flex justify-between items-center shadow-sm sticky top-0 z-50">
+                <div class="min-h-screen flex flex-col bg-slate-50">
+                    <header class="bg-white p-4 px-6 flex justify-between items-center shadow-sm sticky top-0 z-50">
                         <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"><i class="fas fa-bolt"></i></div>
+                            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs shadow-lg"><i class="fas fa-bolt"></i></div>
                             <h1 class="font-black text-indigo-900 tracking-tighter">STRACK PRO</h1>
                         </div>
-                        <button onClick=${() => setUser(null)} class="text-rose-500 font-bold text-xs">LOGOUT</button>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase hidden sm:block">${currentUser.name}</span>
+                            <button onClick=${() => setCurrentUser(null)} class="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-500 rounded-full transition-all active:scale-90">
+                                <i class="fas fa-power-off text-sm"></i>
+                            </button>
+                        </div>
                     </header>
 
-                    <main class="p-4 max-w-lg mx-auto w-full">
-                        ${tab === 'dash' && html`<${Dashboard} user=${user} logs=${logs} tasks=${tasks} />`}
-                        ${tab === 'absen' && html`<${Absensi} user=${user} logs=${logs} setLogs=${setLogs} />`}
-                        ${tab === 'task' && html`<${Tugas} user=${user} tasks=${tasks} setTasks=${setTasks} />`}
+                    <main class="flex-1 p-4 max-w-lg mx-auto w-full pb-24">
+                        ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} />`}
+                        ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${setAttendance} />`}
+                        ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${setTasks} users=${users} ann=${announcements} setAnn=${setAnnouncements} />`}
+                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} users=${users} />`}
                     </main>
 
-                    <nav class="fixed bottom-4 left-4 right-4 bg-white/90 glass border border-slate-100 shadow-2xl rounded-3xl flex justify-around p-2 z-50">
-                        <NavBtn icon="fa-house" label="Home" act=${tab==='dash'} click=${()=>setTab('dash')} />
-                        <NavBtn icon="fa-camera" label="Absen" act=${tab==='absen'} click=${()=>setTab('absen')} />
-                        <NavBtn icon="fa-list-check" label="Tugas" act=${tab==='task'} click=${()=>setTab('task')} />
+                    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around p-2 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+                        <NavBtn icon="fa-house" label="Home" act=${activeTab==='dashboard'} click=${()=>setActiveTab('dashboard')} />
+                        <NavBtn icon="fa-camera" label="Absen" act=${activeTab==='absensi'} click=${()=>setActiveTab('absensi')} />
+                        <NavBtn icon="fa-list-check" label="Tugas" act=${activeTab==='tugas'} click=${()=>setActiveTab('tugas')} />
+                        <NavBtn icon="fa-users" label="HRIS" act=${activeTab==='hris'} click=${()=>setActiveTab('hris')} />
                     </nav>
                 </div>
             `;
         }
 
+        // --- SUB-COMPONENTS ---
+
         function NavBtn({icon, label, act, click}) {
             return html`
-                <button onClick=${click} class="flex flex-col items-center p-3 rounded-2xl transition-all ${act ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}">
+                <button onClick=${click} class="flex flex-col items-center py-2 px-4 transition-all ${act ? 'text-indigo-600' : 'text-slate-300'}">
                     <i class="fas ${icon} text-lg"></i>
-                    <span class="text-[9px] font-bold mt-1 uppercase">${label}</span>
+                    <span class="text-[9px] font-bold mt-1 uppercase tracking-tighter">${label}</span>
                 </button>
             `;
         }
 
-        function Login({onLogin}) {
-            const [e, setE] = useState('');
-            const [p, setP] = useState('');
+        function AuthPage({users, setUsers, onLogin, isReg, setReg}) {
+            const [form, setForm] = useState({ name: '', email: '', pass: '', role: 'staff', div: 'Jakarta', pos: 'Field Sales', phone: '' });
+
+            const handleAuth = (e) => {
+                e.preventDefault();
+                if (isReg) {
+                    const newUser = { ...form, id: "U"+Date.now(), password: form.pass, avatar: "https://i.pravatar.cc/150?u="+form.email };
+                    setUsers([...users, newUser]);
+                    alert("Daftar Berhasil! Silakan Login.");
+                    setReg(false);
+                } else {
+                    const found = users.find(u => u.email === form.email && u.password === form.pass);
+                    if (found) onLogin(found); else alert("Email/Password Salah!");
+                }
+            };
+
             return html`
-                <div class="min-h-screen bg-indigo-950 flex items-center justify-center p-6 text-white">
-                    <div class="w-full max-w-sm bg-white/10 glass p-8 rounded-[2.5rem] border border-white/20">
-                        <h2 class="text-3xl font-black text-center mb-8 tracking-tighter">PORTAL SALES</h2>
-                        <div class="space-y-4">
-                            <input value=${e} onInput=${x=>setE(x.target.value)} type="email" placeholder="Email" class="w-full p-4 rounded-2xl bg-white/10 outline-none border border-white/10 focus:border-indigo-400" />
-                            <input value=${p} onInput=${x=>setP(x.target.value)} type="password" placeholder="Password" class="w-full p-4 rounded-2xl bg-white/10 outline-none border border-white/10 focus:border-indigo-400" />
-                            <button onClick=${() => {
-                                const found = USERS.find(u => u.email === e && u.password === p);
-                                if(found) onLogin(found); else alert("Salah!");
-                            }} class="w-full p-4 bg-indigo-500 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl">Masuk</button>
-                        </div>
+                <div class="min-h-screen bg-indigo-950 flex items-center justify-center p-6 text-white font-sans">
+                    <div class="w-full max-w-sm bg-white/10 glass p-8 rounded-[2.5rem] border border-white/20 shadow-2xl">
+                        <h2 class="text-3xl font-black text-center mb-1 tracking-tighter uppercase">${isReg ? 'Daftar Baru' : 'Login Staff'}</h2>
+                        <p class="text-center text-xs text-indigo-300 font-bold mb-8 uppercase tracking-widest">SalesTrack Pro System</p>
+                        
+                        <form onSubmit=${handleAuth} class="space-y-4">
+                            ${isReg && html`
+                                <input placeholder="Nama Lengkap" onInput=${x=>setForm({...form, name: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm" required />
+                                <select onInput=${x=>setForm({...form, role: x.target.value})} class="w-full p-4 rounded-2xl bg-slate-800 border border-white/10 outline-none text-sm">
+                                    <option value="staff">Role: Staff Sales</option>
+                                    <option value="admin">Role: Admin/HRD</option>
+                                </select>
+                                <input placeholder="No. HP" onInput=${x=>setForm({...form, phone: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm" required />
+                            `}
+                            <input type="email" placeholder="Email" onInput=${x=>setForm({...form, email: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm" required />
+                            <input type="password" placeholder="Password" onInput=${x=>setForm({...form, pass: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm" required />
+                            
+                            <button class="w-full p-4 bg-indigo-500 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
+                                ${isReg ? 'Buat Akun Sekarang' : 'Masuk Dashboard'}
+                            </button>
+                        </form>
+
+                        <button onClick=${() => setReg(!isReg)} class="w-full mt-6 text-[10px] font-bold text-indigo-300 uppercase tracking-widest opacity-70">
+                            ${isReg ? 'Sudah punya akun? Login' : 'Karyawan baru? Daftar'}
+                        </button>
                     </div>
                 </div>
             `;
         }
 
-        function Dashboard({user, logs, tasks}) {
+        function Dashboard({user, att, tasks, ann}) {
+            const today = new Date().toLocaleDateString('id-ID');
             return html`
-                <div class="space-y-4">
-                    <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[2.5rem] text-white shadow-xl">
-                        <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest">Selamat Datang</p>
-                        <h2 class="text-3xl font-black">${user.name}</h2>
-                        <p class="text-xs mt-2">${user.pos} • ${user.div}</p>
+                <div class="space-y-6">
+                    <div class="bg-gradient-to-br from-indigo-600 to-indigo-900 p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
+                        <i class="fas fa-rocket absolute -right-4 -bottom-4 text-white/10 text-9xl"></i>
+                        <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest mb-1">Field Operation</p>
+                        <h2 class="text-3xl font-black tracking-tight">${user.name}</h2>
+                        <div class="flex gap-2 mt-4">
+                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase">${user.role}</span>
+                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase">${user.div}</span>
+                        </div>
                     </div>
+
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Tugas Aktif</p>
+                        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4"><i class="fas fa-briefcase"></i></div>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Tugas Aktif</p>
                             <p class="text-3xl font-black text-slate-800">${tasks.filter(t=>t.status!=='Selesai').length}</p>
                         </div>
-                        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Absen Hari Ini</p>
-                            <p class="text-3xl font-black text-slate-800">${logs.length}</p>
+                        <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4"><i class="fas fa-clock"></i></div>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Absen Hari Ini</p>
+                            <p class="text-3xl font-black text-slate-800">${att.filter(a=>a.date === today).length}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-black text-slate-800 uppercase text-xs tracking-tighter">Pengumuman</h3>
+                            <i class="fas fa-bullhorn text-indigo-500 text-xs"></i>
+                        </div>
+                        <div class="space-y-3">
+                            ${ann.slice(0, 2).map(a => html`
+                                <div class="p-3 bg-slate-50 rounded-2xl">
+                                    <p class="font-bold text-xs text-slate-700">${a.title}</p>
+                                    <p class="text-[10px] text-slate-400 mt-1 line-clamp-1">${a.content}</p>
+                                </div>
+                            `)}
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function Absensi({user, logs, setLogs}) {
+        function Absensi({user, att, setAtt}) {
             const [photo, setPhoto] = useState(null);
             const [note, setNote] = useState('');
+            const [loc, setLoc] = useState('Mencari GPS...');
             const vRef = useRef(null);
 
-            const start = async () => {
-                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                vRef.current.srcObject = s;
+            useEffect(() => {
+                navigator.geolocation.getCurrentPosition(
+                    p => setLoc(`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`),
+                    () => setLoc("GPS Tidak Aktif")
+                );
+            }, []);
+
+            const startCam = async () => {
+                try {
+                    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                    vRef.current.srcObject = s;
+                } catch(e) { alert("Izinkan Kamera!"); }
             };
 
             const snap = () => {
@@ -138,59 +222,135 @@
                 vRef.current.srcObject.getTracks().forEach(t => t.stop());
             };
 
+            const submit = () => {
+                if(!photo || !note) return alert("Isi Foto & Keterangan!");
+                const newA = { 
+                    id: Date.now(), 
+                    name: user.name, 
+                    date: new Date().toLocaleDateString('id-ID'), 
+                    time: new Date().toLocaleTimeString('id-ID'),
+                    photo, note, loc 
+                };
+                setAtt([newA, ...att]);
+                alert("Absen Berhasil!"); setPhoto(null); setNote('');
+            };
+
             return html`
-                <div class="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 space-y-4">
-                    <h3 class="font-black text-slate-800 uppercase tracking-tighter">Presensi Lapangan</h3>
-                    <div class="aspect-[3/4] bg-slate-900 rounded-3xl overflow-hidden shadow-inner flex items-center justify-center">
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-5">
+                    <h3 class="font-black text-slate-800 text-lg uppercase tracking-tighter">Absensi Selfie GPS</h3>
+                    
+                    <div class="aspect-[3/4] bg-slate-900 rounded-[2rem] overflow-hidden relative shadow-inner">
                         ${!photo ? html`<video ref=${vRef} autoPlay playsInline class="w-full h-full object-cover" />` : html`<img src=${photo} class="w-full h-full object-cover" />`}
+                        <div class="absolute top-4 left-4 bg-black/50 text-white text-[9px] px-3 py-1 rounded-full font-bold backdrop-blur-sm">📍 ${loc}</div>
                     </div>
+
                     <div class="flex gap-2">
-                        ${!photo ? html`<button onClick=${start} class="flex-1 p-4 bg-slate-100 rounded-2xl font-bold text-xs uppercase">Buka Kamera</button>` : null}
-                        ${!photo ? html`<button onClick=${snap} class="flex-1 bg-indigo-600 text-white p-4 rounded-2xl font-bold text-xs uppercase shadow-lg">Ambil Foto</button>` : null}
+                        ${!photo ? html`
+                            <button onClick=${startCam} class="flex-1 p-4 bg-slate-100 text-slate-700 rounded-2xl font-bold text-xs uppercase">Buka Kamera</button>
+                            <button onClick=${snap} class="flex-1 bg-indigo-600 text-white p-4 rounded-2xl font-bold text-xs uppercase shadow-lg">Ambil Foto</button>
+                        ` : html`
+                            <button onClick=${() => {setPhoto(null); startCam();}} class="w-full p-4 bg-rose-50 text-rose-500 rounded-2xl font-bold text-xs uppercase">Ulangi Foto</button>
+                        `}
                     </div>
-                    <textarea value=${note} onInput=${x=>setNote(x.target.value)} placeholder="Tulis aktivitas hari ini..." class="w-full p-5 bg-slate-50 rounded-2xl h-24 text-sm outline-none" />
-                    <button onClick=${() => {
-                        if(!photo || !note) return alert("Wajib Foto & Catatan!");
-                        const n = { id: Date.now(), name: user.name, time: new Date().toLocaleString('id-ID'), photo, note };
-                        setLogs([n, ...logs]); alert("Berhasil!"); setPhoto(null); setNote('');
-                    }} class="w-full p-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl">Kirim Absensi</button>
+
+                    <textarea value=${note} onInput=${x=>setNote(x.target.value)} placeholder="Wajib isi keterangan aktivitas..." class="w-full p-5 bg-slate-50 rounded-3xl h-28 text-sm outline-none focus:ring-2 focus:ring-indigo-100 transition-all" required />
+                    <button onClick=${submit} class="w-full p-5 bg-slate-900 text-white rounded-3xl font-black uppercase text-xs tracking-widest shadow-2xl active:scale-95 transition-all">Kirim Presensi</button>
 
                     ${user.role === 'admin' && html`
-                        <div class="mt-8 border-t pt-6 space-y-4">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest tracking-tighter">Rekap Riwayat Presensi</p>
-                            ${logs.map(l => html`
-                                <div class="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <img src=${l.photo} class="w-12 h-12 rounded-xl object-cover shadow-sm" />
-                                    <div class="flex-1">
-                                        <p class="font-bold text-sm text-slate-800">${l.name}</p>
-                                        <p class="text-[9px] text-indigo-500 font-bold uppercase">${l.time}</p>
-                                        <p class="text-xs text-slate-500 mt-1 italic">"${l.note}"</p>
+                        <div class="mt-10 border-t pt-8">
+                            <h4 class="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-6">Monitoring Kehadiran</h4>
+                            <div class="space-y-4">
+                                ${att.map(a => html`
+                                    <div class="flex gap-4 p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                                        <img src=${a.photo} class="w-16 h-16 rounded-2xl object-cover shadow-sm" />
+                                        <div class="flex-1">
+                                            <p class="font-black text-slate-800 text-xs uppercase">${a.name}</p>
+                                            <p class="text-[9px] font-bold text-indigo-500">${a.time} - ${a.date}</p>
+                                            <p class="text-[9px] text-slate-400 font-bold">📍 ${a.loc}</p>
+                                            <p class="text-[11px] text-slate-500 italic mt-2">"${a.note}"</p>
+                                        </div>
                                     </div>
-                                </div>
-                            `)}
+                                `)}
+                            </div>
                         </div>
                     `}
                 </div>
             `;
         }
 
-        function Tugas({user, tasks, setTasks}) {
+        function TugasPage({user, tasks, setTasks, users, ann, setAnn}) {
+            const [nT, setNT] = useState('');
+            const [target, setTarget] = useState(users.find(u=>u.role==='staff')?.id || '');
+
+            const addT = () => {
+                if(!nT) return;
+                const newT = { id: Date.now(), title: nT, assignedTo: target, status: 'Mulai' };
+                setTasks([...tasks, newT]); setNT('');
+            };
+
             return html`
-                <div class="space-y-4">
-                    <h3 class="font-black text-slate-800 uppercase tracking-tighter">Daftar Pekerjaan</h3>
-                    ${tasks.filter(t => user.role === 'admin' ? true : t.assigned === user.id).map(t => html`
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
-                            <div>
-                                <p class="font-bold text-slate-700 text-sm">${t.title}</p>
-                                <p class="text-[10px] font-bold uppercase text-slate-300 tracking-widest">${t.status}</p>
-                            </div>
-                            ${t.status !== 'Selesai' && html`
-                                <button onClick=${() => setTasks(tasks.map(item => item.id === t.id ? {...item, status: 'Selesai'} : item))} class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                            `}
+                <div class="space-y-6">
+                    ${user.role === 'admin' && html`
+                        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
+                            <h3 class="font-black text-slate-800 uppercase text-xs">Delegasi Tugas</h3>
+                            <input value=${nT} onInput=${x=>setNT(x.target.value)} placeholder="Judul Tugas..." class="w-full p-4 bg-slate-50 rounded-2xl text-sm outline-none" />
+                            <select onInput=${x=>setTarget(x.target.value)} class="w-full p-4 bg-slate-50 rounded-2xl text-xs font-bold uppercase">
+                                ${users.filter(u=>u.role==='staff').map(u => html`<option value=${u.id}>${u.name}</option>`)}
+                            </select>
+                            <button onClick=${addT} class="w-full p-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">Kirim</button>
                         </div>
-                    `)}
+                    `}
+
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest">Daftar Kerja</h3>
+                        <span class="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full">${tasks.length}</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        ${tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).map(t => html`
+                            <div class="bg-white p-5 rounded-[2rem] border border-slate-100 flex justify-between items-center">
+                                <div>
+                                    <p class="font-bold text-sm text-slate-700">${t.title}</p>
+                                    <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">${t.status}</p>
+                                </div>
+                                ${t.status !== 'Selesai' && html`
+                                    <button onClick=${() => setTasks(tasks.map(x => x.id === t.id ? {...x, status: 'Selesai'} : x))} class="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                `}
+                            </div>
+                        `)}
+                    </div>
+                </div>
+            `;
+        }
+
+        function HRISPage({user, users}) {
+            return html`
+                <div class="space-y-6">
+                    <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 text-center flex flex-col items-center">
+                        <img src=${user.avatar} class="w-24 h-24 rounded-full border-4 border-indigo-600 shadow-xl object-cover mb-4" />
+                        <h3 class="text-2xl font-black text-slate-800">${user.name}</h3>
+                        <p class="text-xs font-bold text-indigo-600 uppercase tracking-widest">${user.pos} • ${user.div}</p>
+                        <div class="w-full mt-8 grid grid-cols-1 gap-4 text-left border-t pt-6">
+                            <div><p class="text-[9px] font-bold text-slate-400 uppercase">Email</p><p class="text-sm font-bold text-slate-700">${user.email}</p></div>
+                            <div><p class="text-[9px] font-bold text-slate-400 uppercase">Nomor HP</p><p class="text-sm font-bold text-slate-700">${user.phone}</p></div>
+                        </div>
+                    </div>
+
+                    <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-2">Direktori Rekan Kerja</h3>
+                    <div class="grid grid-cols-1 gap-3">
+                        ${users.map(u => html`
+                            <div class="bg-white p-4 rounded-3xl border border-slate-100 flex items-center gap-4">
+                                <img src=${u.avatar} class="w-10 h-10 rounded-full object-cover shadow-sm" />
+                                <div>
+                                    <p class="font-bold text-slate-800 text-sm">${u.name}</p>
+                                    <p class="text-[9px] font-bold text-slate-400 uppercase">${u.pos}</p>
+                                </div>
+                                <a href="tel:${u.phone}" class="ml-auto w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center"><i class="fas fa-phone text-xs"></i></a>
+                            </div>
+                        `)}
+                    </div>
                 </div>
             `;
         }
