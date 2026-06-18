@@ -1,19 +1,330 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SalesTrack Pro</title>
+    <!-- Script Library Utama -->
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50">
     <div id="root"></div>
-    <script type="module">
-      import React from "https://esm.sh/react@18.2.0";
-      import ReactDOM from "https://esm.sh/react-dom@18.2.0/client";
-      import App from "./App.jsx";
-      const root = ReactDOM.createRoot(document.getElementById("root"));
-      root.render(React.createElement(App));
+
+    <!-- Gunakan text/babel tanpa type="module" untuk menghindari error appendChild -->
+    <script type="text/babel">
+        // Mengambil fungsi langsung dari object Global React
+        const { useState, useEffect, useRef } = React;
+
+        const DEFAULT_USERS = [
+            { id: "U001", email: "admin@sales.com", password: "admin123", name: "Admin HRD", role: "admin", position: "Manager", division: "Pusat", phone: "0812345678", joinDate: "2024-01-01", avatar: "https://i.pravatar.cc/150?u=admin" },
+            { id: "U002", email: "sales@sales.com", password: "sales123", name: "Sales Lapangan", role: "staff", position: "Field Sales", division: "Jakarta", phone: "0877889900", joinDate: "2024-02-01", avatar: "https://i.pravatar.cc/150?u=sales" }
+        ];
+
+        function App() {
+            const [users] = useState(() => JSON.parse(localStorage.getItem('sales_users')) || DEFAULT_USERS);
+            const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('sales_current_user')) || null);
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [attendance, setAttendance] = useState(() => JSON.parse(localStorage.getItem('sales_attendance')) || []);
+            const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('sales_tasks')) || []);
+            
+            const [email, setEmail] = useState('');
+            const [pass, setPass] = useState('');
+
+            useEffect(() => { localStorage.setItem('sales_users', JSON.stringify(users)); }, [users]);
+            useEffect(() => { localStorage.setItem('sales_attendance', JSON.stringify(attendance)); }, [attendance]);
+            useEffect(() => { localStorage.setItem('sales_tasks', JSON.stringify(tasks)); }, [tasks]);
+            useEffect(() => { 
+                if (currentUser) localStorage.setItem('sales_current_user', JSON.stringify(currentUser));
+                else localStorage.removeItem('sales_current_user');
+            }, [currentUser]);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const user = users.find(u => u.email === email && u.password === pass);
+                if (user) setCurrentUser(user);
+                else alert("Email atau Password salah!");
+            };
+
+            if (!currentUser) {
+                return (
+                    <div className="min-h-screen bg-indigo-950 flex items-center justify-center p-4 font-sans text-white">
+                        <div className="max-w-md w-full bg-white/10 backdrop-blur-lg p-8 rounded-[2.5rem] shadow-2xl border border-white/20">
+                            <div className="w-20 h-20 bg-indigo-500 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                                <i className="fa-solid fa-bolt-lightning text-4xl text-white"></i>
+                            </div>
+                            <h2 className="text-3xl font-black text-center mb-1 tracking-tighter">SALESTRACK</h2>
+                            <p className="text-indigo-200 text-center text-xs mb-8 uppercase tracking-widest font-bold">Portal Field Team</p>
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div className="relative">
+                                    <i className="fa-solid fa-envelope absolute left-4 top-4 text-indigo-300"></i>
+                                    <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full pl-12 p-4 rounded-2xl bg-white/5 border border-white/10 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" required />
+                                </div>
+                                <div className="relative">
+                                    <i className="fa-solid fa-lock absolute left-4 top-4 text-indigo-300"></i>
+                                    <input type="password" placeholder="Password" value={pass} onChange={e=>setPass(e.target.value)} className="w-full pl-12 p-4 rounded-2xl bg-white/5 border border-white/10 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" required />
+                                </div>
+                                <button className="w-full p-4 bg-indigo-500 rounded-2xl font-black text-sm tracking-widest hover:bg-indigo-400 transition-all shadow-xl shadow-indigo-500/20 uppercase">Masuk Dashboard</button>
+                            </form>
+                            <div className="mt-8 pt-6 border-t border-white/10 text-[10px] text-indigo-300/60 flex justify-between">
+                                <span>Demo: sales@sales.com</span>
+                                <span>Pass: sales123</span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+                    <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-50">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs">
+                                <i className="fa-solid fa-bolt"></i>
+                            </div>
+                            <h1 className="font-black text-indigo-900 tracking-tighter">STRACK</h1>
+                        </div>
+                        <button onClick={()=>setCurrentUser(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                            <i className="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </header>
+
+                    <main className="flex-1 p-4 max-w-lg mx-auto w-full pb-24">
+                        {activeTab === 'dashboard' && <Dashboard user={currentUser} attendance={attendance} tasks={tasks} />}
+                        {activeTab === 'absensi' && <Absensi user={currentUser} setAttendance={setAttendance} attendance={attendance} />}
+                        {activeTab === 'tugas' && <Tugas user={currentUser} tasks={tasks} setTasks={setTasks} users={users} />}
+                    </main>
+
+                    <nav className="fixed bottom-6 left-6 right-6 bg-white/80 backdrop-blur-md border border-white shadow-2xl rounded-[2rem] flex justify-around p-3 z-50">
+                        <NavBtn icon="fa-house" label="Home" active={activeTab==='dashboard'} onClick={()=>setActiveTab('dashboard')} />
+                        <NavBtn icon="fa-camera" label="Absen" active={activeTab==='absensi'} onClick={()=>setActiveTab('absensi')} />
+                        <NavBtn icon="fa-list-check" label="Tugas" active={activeTab==='tugas'} onClick={()=>setActiveTab('tugas')} />
+                    </nav>
+                </div>
+            );
+        }
+
+        function NavBtn({icon, label, active, onClick}) {
+            return (
+                <button onClick={onClick} className={`flex items-center gap-2 px-5 py-3 rounded-2xl transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-50'}`}>
+                    <i className={`fa-solid ${icon}`}></i>
+                    {active && <span className="text-xs font-bold uppercase tracking-tighter">{label}</span>}
+                </button>
+            )
+        }
+
+        function Dashboard({user, attendance, tasks}) {
+            return (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
+                        <i className="fa-solid fa-circle-nodes absolute -right-4 -bottom-4 text-white/10 text-9xl"></i>
+                        <p className="text-xs font-bold opacity-60 uppercase tracking-widest mb-1">Selamat Datang</p>
+                        <h2 className="text-3xl font-black">{user.name}</h2>
+                        <div className="flex gap-2 mt-4">
+                            <span className="text-[10px] bg-white/20 px-3 py-1 rounded-full font-bold">{user.position}</span>
+                            <span className="text-[10px] bg-white/20 px-3 py-1 rounded-full font-bold">{user.division}</span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4">
+                                <i className="fa-solid fa-briefcase"></i>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tugas Aktif</p>
+                            <p className="text-3xl font-black text-slate-800">{tasks.filter(t=>t.status!=='Selesai').length}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4">
+                                <i className="fa-solid fa-calendar-check"></i>
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Absen Hari Ini</p>
+                            <p className="text-3xl font-black text-slate-800">{attendance.filter(a=>a.time.includes(new Date().toLocaleDateString('id-ID'))).length}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function Absensi({user, setAttendance, attendance}) {
+            const [photo, setPhoto] = useState(null);
+            const [notes, setNotes] = useState('');
+            const [loading, setLoading] = useState(false);
+            const videoRef = useRef(null);
+
+            const startCamera = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                    videoRef.current.srcObject = stream;
+                } catch (e) { alert("Akses kamera ditolak!"); }
+            };
+
+            const capture = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoRef.current.videoWidth;
+                canvas.height = videoRef.current.videoHeight;
+                canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+                setPhoto(canvas.toDataURL('image/png'));
+                if(videoRef.current.srcObject) videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+            };
+
+            const submitAbsen = () => {
+                if(!photo || !notes) return alert("Ambil Foto & Isi Keterangan!");
+                setLoading(true);
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const newAbsen = {
+                        id: Date.now(),
+                        userName: user.name,
+                        time: new Date().toLocaleString('id-ID'),
+                        photo: photo,
+                        notes: notes,
+                        loc: `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`
+                    };
+                    setAttendance([newAbsen, ...attendance]);
+                    setLoading(false);
+                    alert("Presensi Berhasil Dikirim!");
+                    setPhoto(null); setNotes('');
+                }, (err) => {
+                    setLoading(false);
+                    alert("GPS Wajib Aktif untuk Absen!");
+                });
+            };
+
+            return (
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-xl space-y-5 border border-slate-100">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center">
+                            <i className="fa-solid fa-camera"></i>
+                        </div>
+                        <h3 className="font-black text-slate-800 text-lg uppercase tracking-tighter">Presensi Selfie</h3>
+                    </div>
+
+                    <div className="aspect-[3/4] bg-slate-900 rounded-[2rem] overflow-hidden relative shadow-inner">
+                        {!photo ? (
+                            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        ) : (
+                            <img src={photo} className="w-full h-full object-cover animate-pulse" />
+                        )}
+                        {!photo && !videoRef.current?.srcObject && (
+                            <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                                <p className="text-xs font-bold uppercase tracking-widest">Kamera Non-Aktif</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex gap-3">
+                        {!photo ? (
+                            <button onClick={startCamera} className="flex-1 bg-slate-100 text-slate-700 p-4 rounded-2xl font-bold text-xs uppercase">Buka Kamera</button>
+                        ) : (
+                            <button onClick={()=>{setPhoto(null); startCamera();}} className="flex-1 bg-rose-50 text-rose-500 p-4 rounded-2xl font-bold text-xs uppercase">Ulangi</button>
+                        )}
+                        {videoRef.current?.srcObject && !photo && (
+                            <button onClick={capture} className="flex-1 bg-indigo-600 text-white p-4 rounded-2xl font-bold text-xs uppercase shadow-lg shadow-indigo-600/30">Capture</button>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Keterangan Aktivitas</label>
+                        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Wajib diisi..." className="w-full p-5 bg-slate-50 border-none rounded-3xl h-28 focus:ring-2 focus:ring-indigo-100 transition-all outline-none text-sm" />
+                    </div>
+
+                    <button onClick={submitAbsen} disabled={loading} className="w-full p-5 bg-slate-900 text-white rounded-3xl font-black text-sm tracking-widest shadow-2xl disabled:opacity-50 uppercase">
+                        {loading ? "Menghubungkan Satelit..." : "Kirim Presensi"}
+                    </button>
+
+                    {user.role === 'admin' && (
+                        <div className="mt-10 border-t border-slate-100 pt-8">
+                            <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-6">Riwayat Rekap (Admin)</h4>
+                            <div className="space-y-4">
+                                {attendance.length === 0 && <p className="text-center text-slate-300 py-4 text-xs italic">Belum ada data</p>}
+                                {attendance.map(a => (
+                                    <div key={a.id} className="flex gap-4 p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                                        <img src={a.photo} className="w-16 h-16 rounded-2xl object-cover shadow-sm" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-black text-slate-800 text-sm truncate uppercase tracking-tighter">{a.userName}</p>
+                                            <p className="text-[9px] font-bold text-indigo-500 mb-2">{a.time} • 📍 {a.loc}</p>
+                                            <p className="text-xs text-slate-500 italic bg-white p-2 rounded-xl border border-slate-100">"{a.notes}"</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function Tugas({user, tasks, setTasks, users}) {
+            const [title, setTitle] = useState('');
+            const [target, setTarget] = useState(users.find(u=>u.role==='staff')?.id || '');
+
+            const addTugas = () => {
+                if(!title) return alert("Isi Nama Tugas!");
+                const newTask = { id: Date.now(), title, assignedTo: target, status: 'Belum Mulai' };
+                setTasks([...tasks, newTask]);
+                setTitle('');
+                alert("Tugas Terkirim!");
+            };
+
+            return (
+                <div className="space-y-6">
+                    {user.role === 'admin' && (
+                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-4">
+                            <h3 className="font-black text-slate-800 text-lg uppercase tracking-tighter">Delegasi Tugas</h3>
+                            <input type="text" placeholder="Nama Tugas/Kunjungan" value={title} onChange={e=>setTitle(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-indigo-100 text-sm" />
+                            <select value={target} onChange={e=>setTarget(e.target.value)} className="w-full p-4 bg-slate-50 border-none rounded-2xl font-bold text-xs uppercase outline-none focus:ring-2 focus:ring-indigo-100">
+                                {users.filter(u=>u.role==='staff').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                            </select>
+                            <button onClick={addTugas} className="w-full p-4 bg-indigo-600 text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-lg shadow-indigo-600/20">Kirim Tugas</button>
+                        </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center px-2">
+                        <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest tracking-tighter">Daftar Pekerjaan</h3>
+                        <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full uppercase">Aktif: {tasks.filter(t=> (user.role==='admin' ? true : t.assignedTo === user.id) && t.status !== 'Selesai').length}</span>
+                    </div>
+
+                    <div className="space-y-3">
+                        {tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).length === 0 && (
+                            <div className="text-center py-20 text-slate-300">
+                                <i className="fa-solid fa-clipboard-list text-5xl mb-4 opacity-20"></i>
+                                <p className="text-xs font-bold uppercase tracking-widest">Tidak ada tugas</p>
+                            </div>
+                        )}
+                        {tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).map(t => (
+                            <div key={t.id} className="bg-white p-5 rounded-[2rem] flex justify-between items-center shadow-sm border border-slate-100 group transition-all">
+                                <div className="flex gap-4 items-center">
+                                    <div className={`w-2 h-10 rounded-full ${t.status === 'Selesai' ? 'bg-emerald-500' : 'bg-indigo-500'}`}></div>
+                                    <div>
+                                        <p className={`font-bold text-sm ${t.status === 'Selesai' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{t.title}</p>
+                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mt-0.5">{t.status}</p>
+                                    </div>
+                                </div>
+                                {t.status !== 'Selesai' && (
+                                    <button onClick={()=>{
+                                        setTasks(tasks.map(item => item.id === t.id ? {...item, status: 'Selesai'} : item))
+                                    }} className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 hover:bg-emerald-500 hover:text-white transition-all">
+                                        <i className="fa-solid fa-check"></i>
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Render aplikasi
+        const rootElement = document.getElementById('root');
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<App />);
     </script>
-  </body>
+</body>
 </html>
