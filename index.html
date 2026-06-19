@@ -135,12 +135,33 @@
                 safeSetItem('st_gsheet_url_v2.2', gsheetUrl);
             }, [users, currentUser, attendance, tasks, announcements, gsheetUrl]);
 
-            // FITUR SOLUSI AUTO-PULL: Lakukan sinkronisasi otomatis dari cloud saat aplikasi dibuka
+            // Siklus penarikan otomatis background polling setiap 12 detik jika URL tersedia
             useEffect(() => {
                 if (gsheetUrl) {
                     autoPullFromCloud();
+                    const interval = setInterval(() => {
+                        autoPullFromCloud();
+                    }, 12000);
+                    return () => clearInterval(interval);
                 }
             }, [gsheetUrl]);
+
+            // Pengiriman instan asinkron tanpa memblokir interaksi pengguna di HP
+            const autoPushToCloud = async (latestUsers = users, latestAtt = attendance, latestTasks = tasks, latestAnn = announcements) => {
+                if (!gsheetUrl) return;
+                try {
+                    const payload = { users: latestUsers, attendance: latestAtt, tasks: latestTasks, announcements: latestAnn };
+                    await fetch(gsheetUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'push', payload })
+                    });
+                    console.log("Sinkronisasi otomatis ke awan berhasil diselaraskan.");
+                } catch (e) {
+                    console.warn("Gagal menyinkronkan data otomatis ke awan:", e);
+                }
+            };
 
             const autoPullFromCloud = async () => {
                 setIsAutoSyncing(true);
@@ -167,6 +188,27 @@
                 }
             };
 
+            // Wrapper pengubah state yang menginisiasi pengiriman asinkron otomatis ke awan
+            const saveAndSyncUsers = (newUsers) => {
+                setUsers(newUsers);
+                autoPushToCloud(newUsers, attendance, tasks, announcements);
+            };
+
+            const saveAndSyncAttendance = (newAtt) => {
+                setAttendance(newAtt);
+                autoPushToCloud(users, newAtt, tasks, announcements);
+            };
+
+            const saveAndSyncTasks = (newTasks) => {
+                setTasks(newTasks);
+                autoPushToCloud(users, attendance, newTasks, announcements);
+            };
+
+            const saveAndSyncAnnouncements = (newAnn) => {
+                setAnnouncements(newAnn);
+                autoPushToCloud(users, attendance, tasks, newAnn);
+            };
+
             const showNotification = (message, type = 'success') => {
                 setNotification({ message, type });
                 setTimeout(() => setNotification(null), 4000);
@@ -179,602 +221,127 @@
                 window.location.reload();
             };
 
-            if (!currentUser) {
-                return html`
-                    <${AuthPage} 
-                        users=${users} 
-                        setUsers=${setUsers} 
-                        onLogin=${(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
-                        notify=${showNotification}
-                        onReset=${() => setShowResetModal(true)}
-                        gsheetUrl=${gsheetUrl}
-                        setGsheetUrl=${setGsheetUrl}
-                        onSync=${autoPullFromCloud}
-                        isSyncing=${isAutoSyncing}
-                    />
-                `;
-            }
-
+            // Render Aplikasi Global yang menyertakan Toast Notifikasi untuk AuthPage maupun Dashboard
             return html`
-                <div class="min-h-screen flex flex-col md:flex-row bg-slate-50">
+                <div class="relative min-h-screen bg-slate-50">
                     
-                    <!-- Top Toast Banner -->
+                    <!-- Top Toast Banner (Global untuk login maupun dashboard) -->
                     ${notification && html`
-                        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
+                        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
                             notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
                         }">
                             <span>${notification.message}</span>
                         </div>
                     `}
 
-                    <!-- CUSTOM RESET MODAL OVERLAY -->
-                    ${showResetModal && html`
-                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div class="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
-                                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl mx-auto"><i class="fas fa-triangle-exclamation"></i></div>
-                                <h3 class="font-black text-slate-800 text-lg">Hapus Cache Sistem?</h3>
-                                <p class="text-xs text-slate-500 leading-relaxed">Tindakan ini akan mengatur ulang data aplikasi ke pengaturan awal dan menghapus data simulasi di perangkat ini.</p>
-                                <div class="grid grid-cols-2 gap-2 pt-2">
-                                    <button onClick=${() => setShowResetModal(false)} class="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
-                                    <button onClick=${triggerResetAppCache} class="p-3 bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Hapus Data</button>
-                                </div>
-                            </div>
-                        </div>
-                    `}
-
-                    <!-- SIDEBAR NAVIGATION FOR DESKTOP -->
-                    <aside class="w-full md:w-64 bg-indigo-950 text-white flex-shrink-0 md:flex flex-col justify-between sticky top-0 md:h-screen z-40 p-4 shadow-xl">
-                        <div>
-                            <div class="flex items-center justify-between md:mb-8 pb-4 border-b border-indigo-900">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold"><i class="fas fa-bolt"></i></div>
-                                    <h1 class="font-black text-sm tracking-tight text-indigo-100 uppercase">SalesTrack Pro</h1>
-                                </div>
-                                <button onClick=${() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} class="md:hidden text-rose-400 p-2">
-                                    <i class="fas fa-power-off text-lg"></i>
-                                </button>
-                            </div>
-
-                            <div class="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
-                                <img src=${currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
-                                <div class="min-w-0 flex-1">
-                                    <p class="font-bold text-xs truncate text-indigo-100">${currentUser.name}</p>
-                                    <p class="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">${currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
-                                </div>
-                            </div>
-
-                            <nav class="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0">
-                                <${NavBtn} icon="fa-house" label="Dashboard" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
-                                <${NavBtn} icon="fa-camera" label=${currentUser.role === 'admin' ? 'Data Absen' : 'Kamera & Absensi'} active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
-                                <${NavBtn} icon="fa-list-check" label="Manajemen Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
-                                <${NavBtn} icon="fa-user-tie" label="Data HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
-                                ${currentUser.role === 'admin' && html`
-                                    <${NavBtn} icon="fa-database" label="Database & Lapor" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
-                                `}
-                            </nav>
-                        </div>
-
-                        <div class="hidden md:flex flex-col gap-2">
-                            <button onClick=${() => setShowResetModal(true)} class="flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white transition-all text-left text-[11px] font-bold">
-                                <i class="fas fa-trash-can"></i>
-                                <span>RESET DATA APLIKASI</span>
-                            </button>
-                            <button onClick=${() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} class="flex items-center gap-3 w-full p-3 text-rose-400 hover:bg-rose-950/20 rounded-xl transition-all font-bold text-xs">
-                                <i class="fas fa-power-off"></i>
-                                <span>KELUAR APLIKASI</span>
-                            </button>
-                        </div>
-                    </aside>
-
-                    <!-- MAIN CONTENT VIEWPORT -->
-                    <main class="flex-grow p-4 md:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-8 overflow-y-auto">
-                        ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} setAnn=${setAnnouncements} notify=${showNotification} />`}
-                        ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${setAttendance} notify=${showNotification} />`}
-                        ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${setTasks} users=${users} notify=${showNotification} />`}
-                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} setUser=${setCurrentUser} users=${users} setUsers=${setUsers} notify=${showNotification} />`}
-                        ${activeTab === 'database' && currentUser.role === 'admin' && html`
-                            <${DatabasePage} 
-                                user=${currentUser} 
-                                users=${users} 
-                                setUsers=${setUsers}
-                                att=${attendance} 
-                                setAtt=${setAttendance}
-                                tasks=${tasks} 
-                                setTasks=${setTasks}
-                                ann=${announcements} 
-                                setAnn=${setAnnouncements}
-                                gsheetUrl=${gsheetUrl}
-                                setGsheetUrl=${setGsheetUrl}
-                                notify=${showNotification} 
-                            />
-                        `}
-                    </main>
-
-                    <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
-                    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
-                        <${MobileNavBtn} icon="fa-house" label="Home" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
-                        <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
-                        <${MobileNavBtn} icon="fa-list-check" label="Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
-                        <MobileNavBtn icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
-                        ${currentUser.role === 'admin' && html`
-                            <${MobileNavBtn} icon="fa-database" label="DB" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
-                        `}
-                    </nav>
-                </div>
-            `;
-        }
-
-        function AuthPage({ users, setUsers, onLogin, notify, onReset, gsheetUrl, setGsheetUrl, onSync, isSyncing }) {
-            const [isReg, setIsReg] = useState(false);
-            const [showPass, setShowPass] = useState(false);
-            const [form, setForm] = useState({ name: '', email: '', pass: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative' });
-
-            const handleAction = async (e) => {
-                e.preventDefault();
-                if (isReg) {
-                    if (!form.name || !form.email || !form.pass || !form.phone) {
-                        return notify("Mohon lengkapi semua data pendaftaran!", "error");
-                    }
-                    if (users.some(u => u.email.toLowerCase() === form.email.toLowerCase())) {
-                        return notify("Email tersebut sudah terdaftar!", "error");
-                    }
-                    const newUser = {
-                        id: "U" + Date.now().toString().slice(-4),
-                        email: form.email,
-                        password: form.pass,
-                        name: form.name,
-                        role: form.role,
-                        pos: form.role === 'admin' ? 'HR Manager' : form.pos,
-                        div: form.div,
-                        phone: form.phone,
-                        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
-                        joinDate: new Date().toLocaleDateString('id-ID')
-                    };
-                    setUsers([...users, newUser]);
-                    notify("Pendaftaran Akun Berhasil! Silakan Login.");
-                    setIsReg(false);
-                } else {
-                    // SEBELUM VALIDASI LOGIN: Lakukan fetch darurat dari cloud jika ada URL terpasang untuk menghindari data out-of-sync
-                    if (gsheetUrl) {
-                        try {
-                            const res = await fetch(gsheetUrl);
-                            const cloudData = await res.json();
-                            if (cloudData && cloudData.users) {
-                                setUsers(cloudData.users);
-                                // Lakukan pencocokan ulang terhadap data ter-sinkronisasi Google Sheet
-                                const foundCloud = cloudData.users.find(u => u.email.toLowerCase() === form.email.toLowerCase() && u.password === form.pass);
-                                if (foundCloud) {
-                                    onLogin(foundCloud);
-                                    return;
-                                }
-                            }
-                        } catch(err) {
-                            console.warn("Gagal menyinkronkan sebelum login, menggunakan DB lokal", err);
-                        }
-                    }
-
-                    // Validasi Database Lokal
-                    const found = users.find(u => u.email.toLowerCase() === form.email.toLowerCase() && u.password === form.pass);
-                    if (found) {
-                        onLogin(found);
-                    } else {
-                        // FITUR REVISI: Tampilkan pesan eror 'salah' secara jelas pada notifikasi UI
-                        notify("Email atau Password salah!", "error");
-                    }
-                }
-            };
-
-            return html`
-                <div class="min-h-screen bg-indigo-950 flex flex-col items-center justify-center p-4">
-                    <div class="w-full max-w-sm bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
-                        <div class="text-center mb-6">
-                            <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-3 shadow-lg"><i class="fas fa-bolt"></i></div>
-                            <h2 class="text-2xl font-black text-slate-800 tracking-tight uppercase">${isReg ? 'Daftar Baru' : 'Login Portal'}</h2>
-                            <p class="text-xs text-slate-400 font-bold tracking-widest uppercase mt-1">SalesTrack Pro System</p>
-                        </div>
-
-                        <form onSubmit=${handleAction} class="space-y-4">
-                            ${isReg && html`
-                                <div class="space-y-4">
-                                    <input placeholder="Nama Lengkap Sesuai KTP" onInput=${e => setForm({...form, name: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
-                                    <select onInput=${e => setForm({...form, role: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-bold text-indigo-900">
-                                        <option value="staff">💼 Peran: Staff Sales Lapangan</option>
-                                        <option value="admin">🛡️ Peran: Administrator / HRD</option>
-                                    </select>
-                                    ${form.role === 'staff' && html`
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <select onInput=${e => setForm({...form, pos: e.target.value})} class="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
-                                                <option value="Sales Representative">Sales Rep</option>
-                                                <option value="Senior Sales Executive">Senior Executive</option>
-                                                <option value="Canvasser">Canvasser</option>
-                                            </select>
-                                            <select onInput=${e => setForm({...form, div: e.target.value})} class="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
-                                                <option value="Jakarta">DKI Jakarta</option>
-                                                <option value="Jawa Barat">Jawa Barat</option>
-                                                <option value="Jawa Tengah">Jawa Tengah</option>
-                                                <option value="Bandung">Bandung</option>
-                                            </select>
+                    ${!currentUser ? html`
+                        <${AuthPage} 
+                            users=${users} 
+                            setUsers=${saveAndSyncUsers} 
+                            onLogin=${(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
+                            notify=${showNotification}
+                            onReset=${() => setShowResetModal(true)}
+                            gsheetUrl=${gsheetUrl}
+                            setGsheetUrl=${setGsheetUrl}
+                            onSync=${autoPullFromCloud}
+                            isSyncing=${isAutoSyncing}
+                        />
+                    ` : html`
+                        <div class="min-h-screen flex flex-col md:flex-row bg-slate-50">
+                            
+                            <!-- CUSTOM RESET MODAL OVERLAY -->
+                            ${showResetModal && html`
+                                <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                                    <div class="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
+                                        <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl mx-auto"><i class="fas fa-triangle-exclamation"></i></div>
+                                        <h3 class="font-black text-slate-800 text-lg">Hapus Cache Sistem?</h3>
+                                        <p class="text-xs text-slate-500 leading-relaxed">Tindakan ini akan mengatur ulang data aplikasi ke pengaturan awal dan menghapus data simulasi di perangkat ini.</p>
+                                        <div class="grid grid-cols-2 gap-2 pt-2">
+                                            <button onClick=${() => setShowResetModal(false)} class="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
+                                            <button onClick=${triggerResetAppCache} class="p-3 bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Hapus Data</button>
                                         </div>
-                                    `}
-                                    <input placeholder="Nomor WhatsApp/HP" type="tel" onInput=${e => setForm({...form, phone: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                    </div>
                                 </div>
                             `}
-                            <input type="email" placeholder="Email Perusahaan" onInput=${e => setForm({...form, email: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
-                            <div>
-                                <input type=${showPass ? "text" : "password"} placeholder="Password" onInput=${e => setForm({...form, pass: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
-                                <div class="flex items-center gap-2 mt-2 ml-2">
-                                    <input type="checkbox" id="showpass" checked=${showPass} onChange=${() => setShowPass(!showPass)} class="accent-indigo-600 rounded" />
-                                    <label htmlFor="showpass" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">Lihat Password</label>
+
+                            <!-- SIDEBAR NAVIGATION FOR DESKTOP -->
+                            <aside class="w-full md:w-64 bg-indigo-950 text-white flex-shrink-0 md:flex flex-col justify-between sticky top-0 md:h-screen z-40 p-4 shadow-xl">
+                                <div>
+                                    <div class="flex items-center justify-between md:mb-8 pb-4 border-b border-indigo-900">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold"><i class="fas fa-bolt"></i></div>
+                                            <h1 class="font-black text-sm tracking-tight text-indigo-100 uppercase">SalesTrack Pro</h1>
+                                        </div>
+                                        <button onClick=${() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} class="md:hidden text-rose-400 p-2">
+                                            <i class="fas fa-power-off text-lg"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
+                                        <img src=${currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
+                                        <div class="min-w-0 flex-1">
+                                            <p class="font-bold text-xs truncate text-indigo-100">${currentUser.name}</p>
+                                            <p class="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">${currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
+                                        </div>
+                                    </div>
+
+                                    <nav class="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0">
+                                        <${NavBtn} icon="fa-house" label="Dashboard" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
+                                        <${NavBtn} icon="fa-camera" label=${currentUser.role === 'admin' ? 'Data Absen' : 'Kamera & Absensi'} active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
+                                        <${NavBtn} icon="fa-list-check" label="Manajemen Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
+                                        <${NavBtn} icon="fa-user-tie" label="Data HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
+                                        ${currentUser.role === 'admin' && html`
+                                            <${NavBtn} icon="fa-database" label="Database & Lapor" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
+                                        `}
+                                    </nav>
                                 </div>
-                            </div>
 
-                            <button class="w-full p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all">
-                                ${isReg ? 'Kirim Pendaftaran' : 'Masuk Dashboard'}
-                            </button>
-                        </form>
-
-                        <button onClick=${() => setIsReg(!isReg)} class="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline text-center">
-                            ${isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
-                        </button>
-
-                        <!-- Panel Koneksi Cepat Database Awan untuk mempermudah pendaftaran awal HP -->
-                        ${!isReg && html`
-                            <div class="mt-6 pt-4 border-t border-slate-100 text-center space-y-2">
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Sambungan Cloud Google</p>
-                                <div class="flex gap-1.5">
-                                    <input placeholder="URL Apps Script..." value=${gsheetUrl} onInput=${e => setGsheetUrl(e.target.value)} class="flex-1 p-2 rounded-xl bg-slate-50 border text-[9px] outline-none" />
-                                    <button onClick=${onSync} disabled=${isSyncing} class="p-2 bg-emerald-600 text-white rounded-xl text-[9px] font-bold uppercase">
-                                        ${isSyncing ? "..." : "Sync"}
+                                <div class="hidden md:flex flex-col gap-2">
+                                    <button onClick=${() => setShowResetModal(true)} class="flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white transition-all text-left text-[11px] font-bold">
+                                        <i class="fas fa-trash-can"></i>
+                                        <span>RESET DATA APLIKASI</span>
+                                    </button>
+                                    <button onClick=${() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} class="flex items-center gap-3 w-full p-3 text-rose-400 hover:bg-rose-950/20 rounded-xl transition-all font-bold text-xs">
+                                        <i class="fas fa-power-off"></i>
+                                        <span>KELUAR APLIKASI</span>
                                     </button>
                                 </div>
-                            </div>
-                        `}
-                    </div>
+                            </aside>
 
-                    <div class="mt-6 text-center">
-                        <button onClick=${onReset} class="text-[9px] text-slate-500 hover:text-white uppercase tracking-wider font-bold">
-                            Reset Database Aplikasi
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
+                            <!-- MAIN CONTENT VIEWPORT -->
+                            <main class="flex-grow p-4 md:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-8 overflow-y-auto">
+                                ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} setAnn=${saveAndSyncAnnouncements} notify=${showNotification} />`}
+                                ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${saveAndSyncAttendance} notify=${showNotification} />`}
+                                ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${saveAndSyncTasks} users=${users} notify=${showNotification} />`}
+                                ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} setUser=${setCurrentUser} users=${users} setUsers=${saveAndSyncUsers} notify=${showNotification} />`}
+                                ${activeTab === 'database' && currentUser.role === 'admin' && html`
+                                    <${DatabasePage} 
+                                        user=${currentUser} 
+                                        users=${users} 
+                                        setUsers=${saveAndSyncUsers}
+                                        att=${attendance} 
+                                        setAtt=${saveAndSyncAttendance}
+                                        tasks=${tasks} 
+                                        setTasks=${saveAndSyncTasks}
+                                        ann=${announcements} 
+                                        setAnn=${saveAndSyncAnnouncements}
+                                        gsheetUrl=${gsheetUrl}
+                                        setGsheetUrl=${setGsheetUrl}
+                                        notify=${showNotification} 
+                                    />
+                                `}
+                            </main>
 
-        function Dashboard({ user, att, tasks, ann, setAnn, notify }) {
-            const [showAddAnn, setShowAddAnn] = useState(false);
-            const [newAnn, setNewAnn] = useState({ title: '', content: '', attachment: null, attachmentName: '', attachmentType: '' });
-
-            const handleFileChange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setNewAnn({
-                        ...newAnn,
-                        attachment: reader.result,
-                        attachmentName: file.name,
-                        attachmentType: file.type
-                    });
-                    notify("Berkas media berhasil ditambahkan!");
-                };
-                reader.readAsDataURL(file);
-            };
-
-            const handlePostAnn = (e) => {
-                e.preventDefault();
-                if (!newAnn.title || !newAnn.content) return notify("Judul dan isi pengumuman wajib diisi!", "error");
-                const newItem = {
-                    id: "A-" + Date.now(),
-                    title: newAnn.title,
-                    content: newAnn.content,
-                    date: new Date().toLocaleDateString('id-ID'),
-                    author: user.name,
-                    attachment: newAnn.attachment,
-                    attachmentName: newAnn.attachmentName,
-                    attachmentType: newAnn.attachmentType
-                };
-                setAnn([newItem, ...ann]);
-                setNewAnn({ title: '', content: '', attachment: null, attachmentName: '', attachmentType: '' });
-                setShowAddAnn(false);
-                notify("Pengumuman berhasil disebarkan!");
-            };
-
-            const handleDeleteAnn = (id) => {
-                setAnn(ann.filter(a => a.id !== id));
-                notify("Pengumuman dihapus.", "error");
-            };
-
-            return html`
-                <div class="space-y-6">
-                    <div class="bg-indigo-900 p-6 md:p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
-                        <i class="fas fa-rocket absolute -right-6 -bottom-6 text-white/10 text-9xl"></i>
-                        <p class="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Field Operations Portal</p>
-                        <h2 class="text-2xl md:text-3xl font-black tracking-tight">Selamat Datang, ${user.name}</h2>
-                        <div class="flex flex-wrap gap-2 mt-4">
-                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">${user.role === 'admin' ? '🛡️ Administrator' : '💼 Sales Staff'}</span>
-                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">📍 Divisi: ${user.div || 'Pusat'}</span>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div class="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
-                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-lg"><i class="fas fa-list-check"></i></div>
-                            <div>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tugas Anda</p>
-                                <p class="text-xl font-black text-slate-800">${tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).length}</p>
-                            </div>
-                        </div>
-                        <div class="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
-                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-lg"><i class="fas fa-calendar-day"></i></div>
-                            <div>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Hadir Hari Ini</p>
-                                <p class="text-xl font-black text-slate-800">${att.filter(a => user.role === 'admin' ? true : a.userId === user.id).length}</p>
-                            </div>
-                        </div>
-                        <div class="col-span-2 md:col-span-1 bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4 justify-center md:justify-start">
-                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-lg"><i class="fas fa-bullhorn"></i></div>
-                            <div>
-                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pengumuman</p>
-                                <p class="text-xl font-black text-slate-800">${ann.length}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-black text-slate-800 uppercase text-xs tracking-wider">Papan Pengumuman Resmi</h3>
-                            ${user.role === 'admin' && html`
-                                <button onClick=${() => setShowAddAnn(!showAddAnn)} class="text-indigo-600 font-bold text-xs uppercase hover:underline">
-                                    ${showAddAnn ? 'Batal' : '+ Pengumuman'}
-                                </button>
-                            `}
-                        </div>
-
-                        ${showAddAnn && html`
-                            <form onSubmit=${handlePostAnn} class="mb-6 space-y-3 bg-slate-50 p-4 rounded-3xl border border-dashed border-indigo-200">
-                                <input placeholder="Judul Pengumuman" value=${newAnn.title} onInput=${e => setNewAnn({...newAnn, title: e.target.value})} class="w-full p-3 bg-white rounded-xl text-sm font-semibold outline-none border" required />
-                                <textarea placeholder="Tulis isi pengumuman kepada seluruh tim sales..." value=${newAnn.content} onInput=${e => setNewAnn({...newAnn, content: e.target.value})} class="w-full p-3 bg-white rounded-xl text-sm h-24 outline-none border resize-none" required />
-                                
-                                <div class="bg-white p-3 rounded-2xl border flex flex-col space-y-2">
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase">Tambahkan Media / Dokumen (Foto/Video/PDF)</label>
-                                    <input type="file" onChange=${handleFileChange} class="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                                    ${newAnn.attachmentName && html`
-                                        <p class="text-[10px] text-emerald-600 font-bold"><i class="fas fa-paperclip mr-1"></i> Terlampir: ${newAnn.attachmentName}</p>
-                                    `}
-                                </div>
-                                <button type="submit" class="w-full p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Siarkan Pengumuman</button>
-                            </form>
-                        `}
-
-                        <div class="space-y-4 max-h-[450px] overflow-y-auto no-scrollbar">
-                            ${ann.length === 0 ? html`
-                                <p class="text-center text-slate-400 text-xs py-6 font-semibold">Belum ada pengumuman hari ini.</p>
-                            ` : ann.map(a => html`
-                                <div key=${a.id} class="p-4 bg-slate-50 rounded-2xl border relative hover:border-slate-300 transition-all space-y-3">
-                                    <h4 class="font-bold text-indigo-950 text-sm">${a.title}</h4>
-                                    <p class="text-xs text-slate-500 leading-relaxed whitespace-pre-line">${a.content}</p>
-                                    
-                                    ${a.attachment && html`
-                                        <div class="mt-2 border-t pt-2">
-                                            ${a.attachmentType?.startsWith('image/') ? html`
-                                                <img src=${a.attachment} class="max-w-full max-h-60 rounded-xl object-contain border" />
-                                            ` : a.attachmentType?.startsWith('video/') ? html`
-                                                <video src=${a.attachment} controls class="w-full max-h-60 rounded-xl border bg-black"></video>
-                                            ` : html`
-                                                <a href=${a.attachment} download=${a.attachmentName} class="inline-flex items-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-100">
-                                                    <i class="fas fa-file-invoice text-lg"></i>
-                                                    <div class="text-left">
-                                                        <p class="font-bold text-[10px] uppercase text-indigo-400">Unduh Dokumen</p>
-                                                        <p class="text-xs truncate max-w-[200px]">${a.attachmentName || 'lampiran.pdf'}</p>
-                                                    </div>
-                                                </a>
-                                            `}
-                                        </div>
-                                    `}
-
-                                    <div class="flex justify-between items-center border-t pt-2 text-[9px] font-bold text-slate-400 uppercase mt-2">
-                                        <span>Oleh: ${a.author} • ${a.date}</span>
-                                        ${user.role === 'admin' && html`
-                                            <button onClick=${() => handleDeleteAnn(a.id)} class="text-rose-500 hover:underline">Hapus</button>
-                                        `}
-                                    </div>
-                                </div>
-                            `)}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function Absensi({ user, att, setAtt, notify }) {
-            const [notes, setNotes] = useState('');
-            const [type, setType] = useState('Masuk');
-            const [camActive, setCamActive] = useState(false);
-            const [photo, setPhoto] = useState(null);
-            const [gpsData, setGpsData] = useState(null);
-            const [gpsLoading, setGpsLoading] = useState(false);
-
-            const videoRef = useRef(null);
-            const canvasRef = useRef(null);
-
-            useEffect(() => {
-                fetchLocation();
-            }, []);
-
-            const fetchLocation = () => {
-                if (!navigator.geolocation) {
-                    setGpsData({ lat: -6.2088, lng: 106.8456, address: "GPS tidak didukung perangkat browser." });
-                    return;
-                }
-                setGpsLoading(true);
-                try {
-                    navigator.geolocation.getCurrentPosition(
-                        pos => {
-                            setGpsData({
-                                lat: pos.coords.latitude,
-                                lng: pos.coords.longitude,
-                                address: `Satelit Terverifikasi (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`
-                            });
-                            setGpsLoading(false);
-                        },
-                        err => {
-                            setGpsData({
-                                lat: -6.2088 + (Math.random() - 0.5) * 0.01,
-                                lng: 106.8456 + (Math.random() - 0.5) * 0.01,
-                                address: "Lokasi Simulasi GPS (Akses Satelit Ditolak)"
-                            });
-                            setGpsLoading(false);
-                            notify("Gagal memuat GPS asli. Menggunakan koordinat simulasi.", "error");
-                        }
-                    );
-                } catch (e) {
-                    setGpsData({ lat: -6.2088, lng: 106.8456, address: "Sistem GPS Diblokir Sandbox Browser" });
-                    setGpsLoading(false);
-                }
-            };
-
-            useEffect(() => {
-                let stream = null;
-                const enableCamera = async () => {
-                    if (camActive && videoRef.current) {
-                        try {
-                            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-                            videoRef.current.srcObject = stream;
-                        } catch (e) {
-                            const fallbackPhotos = [
-                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
-                                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300"
-                            ];
-                            setPhoto(fallbackPhotos[Math.floor(Math.random() * fallbackPhotos.length)]);
-                            setCamActive(false);
-                            notify("Kamera gagal diakses. Memakai foto demo otomatis.", "error");
-                        }
-                    }
-                };
-                enableCamera();
-                return () => {
-                    if (stream) {
-                        stream.getTracks().forEach(t => t.stop());
-                    }
-                };
-            }, [camActive]);
-
-            const takeSelfie = () => {
-                if (videoRef.current && canvasRef.current) {
-                    const canvas = canvasRef.current;
-                    const video = videoRef.current;
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0);
-                    setPhoto(canvas.toDataURL('image/png'));
-                    setCamActive(false);
-                    notify("Foto berhasil diambil!");
-                }
-            };
-
-            const handleSubmitAbsen = (e) => {
-                e.preventDefault();
-                if (!photo) return notify("Wajib melakukan foto selfie sebagai bukti kehadiran!", "error");
-                if (!notes.trim()) return notify("Kolom keterangan aktivitas harian wajib diisi!", "error");
-                if (!gpsData) return notify("Menunggu sistem memuat lokasi GPS...", "error");
-
-                const newLog = {
-                    id: "ATT-" + Date.now(),
-                    userId: user.id,
-                    userName: user.name,
-                    type,
-                    notes,
-                    photo,
-                    location: gpsData,
-                    time: new Date().toLocaleDateString('id-ID') + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-                };
-
-                setAtt([newLog, ...att]);
-                setNotes('');
-                setPhoto(null);
-                notify(`Absen ${type} berhasil dikirim ke Admin!`);
-            };
-
-            return html`
-                <div class="space-y-6">
-                    ${user.role === 'admin' ? html`
-                        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
-                          <h3 class="text-xl font-bold text-slate-800 mb-2">Riwayat Presensi Tim Sales</h3>
-                          <p class="text-xs text-slate-400 mb-6">Monitor presensi lapangan lengkap beserta koordinat satelit</p>
-
-                          <div class="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar">
-                              ${att.length === 0 ? html`
-                                  <p class="text-center text-slate-400 py-12 text-sm font-semibold">Belum ada karyawan yang absen hari ini.</p>
-                              ` : att.map(a => html`
-                                  <div key=${a.id} class="p-4 bg-slate-50 rounded-3xl border flex flex-col md:flex-row gap-4 items-start">
-                                      <img src=${a.photo} class="w-24 h-32 rounded-2xl object-cover border shadow-sm flex-shrink-0" />
-                                      <div class="space-y-1 flex-1 min-w-0">
-                                          <div class="flex items-center gap-2">
-                                              <h4 class="font-black text-sm text-slate-800">${a.userName}</h4>
-                                              <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${a.type === 'Masuk' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">ABSEN ${a.type}</span>
-                                          </div>
-                                          <p class="text-xs font-bold text-indigo-700">⏱ ${a.time}</p>
-                                          <p class="text-xs text-slate-400 font-bold truncate">
-                                              📍 GPS: ${a.location?.lat ? a.location.lat.toFixed(5) : '0'}, ${a.location?.lng ? a.location.lng.toFixed(5) : '0'} (${a.location?.address || 'Lokasi simulasi'})
-                                          </p>
-                                          <div class="p-3 bg-white border rounded-xl text-xs text-slate-600 mt-2 italic whitespace-pre-wrap">
-                                              &ldquo;${a.notes}&rdquo;
-                                          </div>
-                                      </div>
-                                  </div>
-                              `)}
-                          </div>
-                        </div>
-                    ` : html`
-                        <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm max-w-xl mx-auto space-y-6">
-                            <div>
-                                <h3 class="text-xl font-black text-slate-800">Presensi Kehadiran Sales</h3>
-                                <p class="text-xs text-slate-400 mt-1">Gunakan verifikasi kamera HP asli dan GPS presisi untuk clock-in</p>
-                            </div>
-
-                            <form onSubmit=${handleSubmitAbsen} class="space-y-4">
-                                <div class="grid grid-cols-2 gap-3">
-                                    <button type="button" onClick=${() => setType('Masuk')} class="p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Masuk' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-400'}">🌅 Masuk</button>
-                                    <button type="button" onClick=${() => setType('Keluar')} class="p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Keluar' ? 'bg-rose-50 border-rose-500 text-rose-800' : 'bg-slate-50 border-slate-100 text-slate-400'}">🌇 Pulang</button>
-                                </div>
-
-                                <div class="bg-slate-100 p-4 rounded-2xl text-xs flex justify-between items-center border">
-                                    <div class="min-w-0 flex-1">
-                                        <p class="font-bold text-slate-400">Koordinat GPS Anda:</p>
-                                        <p class="font-bold text-indigo-900 mt-0.5 truncate">${gpsLoading ? "Sedang melacak satelit..." : gpsData?.address}</p>
-                                    </div>
-                                    <button type="button" onClick=${fetchLocation} class="p-2 bg-white rounded-lg border text-indigo-600 ml-2"><i class="fas fa-arrows-rotate"></i></button>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-wider">Bukti Foto Selfie (Wajib)</label>
-                                    <div class="aspect-video bg-slate-900 rounded-[2rem] overflow-hidden relative flex items-center justify-center border-4 border-slate-100 shadow-lg">
-                                        ${camActive && html`<video ref=${videoRef} autoPlay playsInline class="w-full h-full object-cover" />`}
-                                        ${photo && html`<img src=${photo} class="w-full h-full object-cover" />`}
-                                        ${!camActive && !photo && html`
-                                            <div class="text-center text-slate-500 p-4">
-                                                <i class="fas fa-camera text-4xl mb-2 text-slate-700"></i>
-                                                <p class="text-[10px] font-bold uppercase tracking-wider">Kamera Belum Aktif</p>
-                                            </div>
-                                        `}
-                                        <div class="absolute bottom-4 flex gap-2 justify-center w-full">
-                                            ${!camActive ? html`
-                                                <button type="button" onClick=${() => setCamActive(true)} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg">Aktifkan Kamera</button>
-                                            ` : html`
-                                                <button type="button" onClick=${takeSelfie} class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg">Ambil Foto</button>
-                                            `}
-                                        </div>
-                                    </div>
-                                    <canvas ref=${canvasRef} class="hidden" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Aktivitas/Keterangan Hari Ini <span class="text-rose-500">*</span></label>
-                                    <textarea placeholder="Tulis aktivitas penugasan harian yang harus dilaporkan..." value=${notes} onInput=${e => setNotes(e.target.value)} class="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm border outline-none font-semibold focus:border-indigo-500 transition-all" required />
-                                </div>
-
-                                <button type="submit" class="w-full p-3 bg-indigo-900 hover:bg-indigo-850 text-white font-black text-xs uppercase tracking-widest rounded-3xl shadow-xl">Kirim Kehadiran</button>
-                            </form>
+                            <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
+                            <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
+                                <${MobileNavBtn} icon="fa-house" label="Home" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
+                                <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
+                                <${MobileNavBtn} icon="fa-list-check" label="Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
+                                <MobileNavBtn icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
+                                ${currentUser.role === 'admin' && html`
+                                    <${MobileNavBtn} icon="fa-database" label="DB" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
+                                `}
+                            </nav>
                         </div>
                     `}
                 </div>
