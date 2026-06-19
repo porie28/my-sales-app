@@ -42,7 +42,7 @@
         const { useState, useEffect, useRef } = window.preactHooks;
         const html = window.htm.bind(window.preact.h);
 
-        // --- KONFIGURASI DATABASE AWAN OTOMATIS ---
+        // --- KONFIGURASI DATABASE AWAN OTOMATIS DENGAN SAFEGUARD ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'salestrack-v3-premium';
         let firebaseConfig = {};
         try {
@@ -51,11 +51,24 @@
             console.warn("Konfigurasi awan internal dialihkan ke mode sandbox.", e);
         }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        // Safe Initialization Guard: Cegah crash fatal jika config Firebase tidak diinjeksikan
+        let app = null, db = null, auth = null;
+        let isCloudActive = false;
 
-        // Data Cadangan Awal jika Cloud Masih Kosong
+        try {
+            if (firebaseConfig && firebaseConfig.apiKey) {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                isCloudActive = true;
+            } else {
+                console.warn("Kunci API Cloud tidak ditemukan. Aplikasi berjalan dalam mode sandbox lokal.");
+            }
+        } catch (initErr) {
+            console.error("Firebase Gagal Memuat:", initErr);
+        }
+
+        // Data Cadangan Awal jika Cloud Masih Kosong atau Berjalan Lokal
         const INITIAL_USERS = [
             { 
                 id: "U001", 
@@ -109,12 +122,28 @@
             }
         ];
 
+        // Helper Penyimpanan Lokal yang Aman dari Security Sandbox Error
+        const getLocalData = (key, defaultVal) => {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : defaultVal;
+            } catch(e) {
+                return defaultVal;
+            }
+        };
+
+        const setLocalData = (key, val) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(val));
+            } catch(e) {}
+        };
+
         function App() {
-            const [users, setUsers] = useState([]);
-            const [currentUser, setCurrentUser] = useState(null);
-            const [attendance, setAttendance] = useState([]);
-            const [tasks, setTasks] = useState([]);
-            const [announcements, setAnnouncements] = useState([]);
+            const [users, setUsers] = useState(() => getLocalData('st_users', INITIAL_USERS));
+            const [currentUser, setCurrentUser] = useState(() => getLocalData('st_curr_user', null));
+            const [attendance, setAttendance] = useState(() => getLocalData('st_attendance', []));
+            const [tasks, setTasks] = useState(() => getLocalData('st_tasks', INITIAL_TASKS));
+            const [announcements, setAnnouncements] = useState(() => getLocalData('st_announcements', INITIAL_ANNOUNCEMENTS));
 
             // UI States
             const [activeTab, setActiveTab] = useState('dashboard');
@@ -122,6 +151,27 @@
             const [showResetModal, setShowResetModal] = useState(false);
             const [isCloudConnected, setIsCloudConnected] = useState(false);
             const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+            // Simpan data ke memori fisik lokal agar tidak hilang saat mati sinyal
+            useEffect(() => {
+                setLocalData('st_users', users);
+            }, [users]);
+
+            useEffect(() => {
+                setLocalData('st_curr_user', currentUser);
+            }, [currentUser]);
+
+            useEffect(() => {
+                setLocalData('st_attendance', attendance);
+            }, [attendance]);
+
+            useEffect(() => {
+                setLocalData('st_tasks', tasks);
+            }, [tasks]);
+
+            useEffect(() => {
+                setLocalData('st_announcements', announcements);
+            }, [announcements]);
 
             // Menampilkan notifikasi dalam aplikasi (bukan alert browser)
             const showNotification = (message, type = 'success') => {
@@ -132,6 +182,10 @@
             useEffect(() => {
                 const connectCloud = async () => {
                     try {
+                        if (!isCloudActive) {
+                            setIsAuthLoading(false);
+                            return;
+                        }
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token);
                         } else {
@@ -149,7 +203,7 @@
             }, []);
 
             useEffect(() => {
-                if (!isCloudConnected) return;
+                if (!isCloudConnected || !db) return;
 
                 const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
                 const attendanceRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
@@ -220,25 +274,74 @@
 
             // Handler Penulisan & Penghapusan Database Awan Terpusat
             const saveToCloud = async (collectionName, docId, data) => {
-                if (!auth.currentUser) return;
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data);
+                // Selalu perbarui state lokal terlebih dahulu
+                if (collectionName === 'users') {
+                    setUsers(prev => {
+                        const index = prev.findIndex(u => u.id === docId);
+                        if (index > -1) {
+                            const copy = [...prev];
+                            copy[index] = data;
+                            return copy;
+                        }
+                        return [...prev, data];
+                    });
+                } else if (collectionName === 'attendance') {
+                    setAttendance(prev => [data, ...prev.filter(a => a.id !== docId)]);
+                } else if (collectionName === 'tasks') {
+                    setTasks(prev => {
+                        const index = prev.findIndex(t => t.id === docId);
+                        if (index > -1) {
+                            const copy = [...prev];
+                            copy[index] = data;
+                            return copy;
+                        }
+                        return [data, ...prev];
+                    });
+                } else if (collectionName === 'announcements') {
+                    setAnnouncements(prev => [data, ...prev.filter(a => a.id !== docId)]);
+                }
+
+                if (!isCloudConnected || !auth.currentUser) return;
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data);
+                } catch(e) {
+                    console.error("Gagal sinkron ke awan:", e);
+                }
             };
 
             const deleteFromCloud = async (collectionName, docId) => {
-                if (!auth.currentUser) return;
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId));
+                // Selalu perbarui lokal terlebih dahulu
+                if (collectionName === 'users') {
+                    setUsers(prev => prev.filter(u => u.id !== docId));
+                } else if (collectionName === 'attendance') {
+                    setAttendance(prev => prev.filter(a => a.id !== docId));
+                } else if (collectionName === 'tasks') {
+                    setTasks(prev => prev.filter(t => t.id !== docId));
+                } else if (collectionName === 'announcements') {
+                    setAnnouncements(prev => prev.filter(a => a.id !== docId));
+                }
+
+                if (!isCloudConnected || !auth.currentUser) return;
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId));
+                } catch(e) {
+                    console.error("Gagal menghapus dari awan:", e);
+                }
             };
 
             const triggerResetAppCache = async () => {
                 // Menghapus database awan yang disimulasikan agar bersih kembali
-                if (auth.currentUser) {
+                if (isCloudConnected && auth.currentUser) {
                     users.forEach(async u => await deleteFromCloud('users', u.id));
                     attendance.forEach(async a => await deleteFromCloud('attendance', a.id));
                     tasks.forEach(async t => await deleteFromCloud('tasks', t.id));
                     announcements.forEach(async ann => await deleteFromCloud('announcements', ann.id));
                 }
+                try {
+                    localStorage.clear();
+                } catch(e) {}
                 setShowResetModal(false);
-                showNotification("Seluruh database awan berhasil diatur ulang!");
+                showNotification("Seluruh database berhasil diatur ulang!");
                 setTimeout(() => window.location.reload(), 1500);
             };
 
@@ -246,7 +349,7 @@
                 return html`
                     <div class="min-h-screen bg-indigo-950 flex flex-col items-center justify-center p-4">
                         <div class="w-12 h-12 border-4 border-indigo-400 border-t-white rounded-full animate-spin"></div>
-                        <p class="text-white text-xs mt-4 font-bold tracking-widest uppercase">Menghubungkan Portal Awan Otomatis...</p>
+                        <p class="text-white text-xs mt-4 font-bold tracking-widest uppercase">Menghubungkan Portal Kehadiran...</p>
                     </div>
                 `;
             }
@@ -352,12 +455,12 @@
                         `}
                     </main>
 
-                    <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
+                    <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) - FIX CRASH TAG -->
                     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
                         <${MobileNavBtn} icon="fa-house" label="Home" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
                         <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
                         <${MobileNavBtn} icon="fa-list-check" label="Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
-                        <MobileNavBtn icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
+                        <${MobileNavBtn} icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
                         ${currentUser.role === 'admin' && html`
                             <${MobileNavBtn} icon="fa-cloud-arrow-up" label="Awan" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
                         `}
@@ -396,7 +499,6 @@
                     notify("Pendaftaran Akun Berhasil! Silakan Login.");
                     setIsReg(false);
                 } else {
-                    // Validasi Akun Melalui Realtime Cloud Database secara Otomatis
                     const found = users.find(u => u.email.toLowerCase() === form.email.toLowerCase() && u.password === form.pass);
                     if (found) {
                         onLogin(found);
@@ -459,11 +561,10 @@
                             ${isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
                         </button>
 
-                        <!-- Indikator Status Sambungan Otomatis -->
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                ⚡ Portal Awan Aktif & Terhubung
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${isCloudActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}">
+                                <span class="w-2 h-2 rounded-full ${isCloudActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}"></span>
+                                ${isCloudActive ? '⚡ Cloud Terhubung' : '💾 Mode Lokal Aktif'}
                             </span>
                         </div>
                     </div>
@@ -492,7 +593,7 @@
                         attachmentName: file.name,
                         attachmentType: file.type
                     });
-                    notify("Berkas media berhasil ditambahkan!");
+                    notify("Media / berkas berhasil dilampirkan!");
                 };
                 reader.readAsDataURL(file);
             };
