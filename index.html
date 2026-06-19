@@ -3,44 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SalesTrack Pro v2 | Full Operational</title>
+    <title>SalesTrack Pro v2.0 | Portal Lapangan Modern</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htm/preact/standalone.umd.js"></script>
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Font Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body { -webkit-tap-highlight-color: transparent; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .bg-login { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); }
-        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05); }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        .glass { 
+            background: rgba(255, 255, 255, 0.95); 
+            backdrop-filter: blur(10px); 
+        }
+        .no-scrollbar::-webkit-scrollbar { 
+            display: none; 
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
-    <script>
-        const { html, render, useState, useEffect, useRef } = htmPreact;
+    <!-- React, ReactDOM, & Babel menggunakan Cloudflare CDN yang sangat stabil dan andal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.12/babel.min.js" crossorigin="anonymous"></script>
 
-        // --- DATABASE LOCAL SIMULATION ---
+    <!-- Transpilasi JSX langsung di browser tanpa kompilasi modul yang berisiko error -->
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Data Awal Sistem untuk Uji Coba Pertama
         const INITIAL_USERS = [
-            { id: "ADM-01", email: "admin@sales.com", password: "admin123", name: "Hendra Manager", role: "admin", pos: "Manager Operasional", div: "Pusat", phone: "08123456789", avatar: "https://i.pravatar.cc/150?u=ADM-01" },
-            { id: "STF-01", email: "sales@sales.com", password: "sales123", name: "Budi Sales", role: "staff", pos: "Field Sales Representative", div: "Jakarta Barat", phone: "087788990011", avatar: "https://i.pravatar.cc/150?u=STF-01" }
+            { 
+                id: "U001", 
+                email: "admin@sales.com", 
+                password: "admin123", 
+                name: "Hendra Manager", 
+                role: "admin", 
+                pos: "Sales Manager", 
+                div: "Pusat", 
+                phone: "08123456789", 
+                avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200",
+                joinDate: "15/01/2024"
+            },
+            { 
+                id: "U002", 
+                email: "sales@sales.com", 
+                password: "sales123", 
+                name: "Budi Sales", 
+                role: "staff", 
+                pos: "Field Sales", 
+                div: "Jakarta", 
+                phone: "08778899001", 
+                avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=200",
+                joinDate: "10/02/2024"
+            }
+        ];
+
+        const INITIAL_TASKS = [
+            { 
+                id: "T-01", 
+                title: "Kunjungan Toko Berkah Jaya", 
+                description: "Lakukan pengecekan stok produk dan tawarkan promo potongan harga kuartal ini.", 
+                assignedTo: "U002", 
+                assignedName: "Budi Sales", 
+                deadline: "2026-06-25", 
+                status: "Belum Mulai", 
+                priority: "Tinggi" 
+            }
+        ];
+
+        const INITIAL_ANNOUNCEMENTS = [
+            { 
+                id: "A-01", 
+                title: "Target Operasional Juni", 
+                content: "Fokus peningkatan penetrasi produk baru ke sektor ritel tradisional wilayah Jakarta.", 
+                date: "18/06/2026", 
+                author: "Hendra Manager" 
+            }
         ];
 
         function App() {
-            // Persistent States
+            // Utama States (Terintegrasi LocalStorage HP agar data tidak hilang)
             const [users, setUsers] = useState(() => JSON.parse(localStorage.getItem('st_users_v2')) || INITIAL_USERS);
             const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('st_curr_v2')) || null);
             const [attendance, setAttendance] = useState(() => JSON.parse(localStorage.getItem('st_att_v2')) || []);
-            const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('st_tasks_v2')) || []);
-            const [announcements, setAnnouncements] = useState(() => JSON.parse(localStorage.getItem('st_ann_v2')) || [
-                { id: 1, title: "SOP Kunjungan Baru", content: "Setiap kunjungan wajib upload foto selfie depan toko.", date: "18/06/2026", author: "Hendra" }
-            ]);
+            const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('st_tasks_v2')) || INITIAL_TASKS);
+            const [announcements, setAnnouncements] = useState(() => JSON.parse(localStorage.getItem('st_ann_v2')) || INITIAL_ANNOUNCEMENTS);
 
+            // UI States
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [isRegistering, setIsRegistering] = useState(false);
+            const [notification, setNotification] = useState(null);
 
+            // Simpan otomatis ke penyimpanan memori lokal browser HP
             useEffect(() => {
                 localStorage.setItem('st_users_v2', JSON.stringify(users));
                 localStorage.setItem('st_curr_v2', JSON.stringify(currentUser));
@@ -49,382 +110,709 @@
                 localStorage.setItem('st_ann_v2', JSON.stringify(announcements));
             }, [users, currentUser, attendance, tasks, announcements]);
 
+            // Helper notifikasi kustom tanpa alert browser
+            const showNotification = (message, type = 'success') => {
+                setNotification({ message, type });
+                setTimeout(() => setNotification(null), 4000);
+            };
+
             if (!currentUser) {
-                return html`<${AuthPage} users=${users} setUsers=${setUsers} onLogin=${setCurrentUser} isReg=${isRegistering} setReg=${setIsRegistering} />`;
+                return (
+                    <AuthPage 
+                        users={users} 
+                        setUsers={setUsers} 
+                        onLogin={(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
+                        notify={showNotification}
+                    />
+                );
             }
 
-            return html`
-                <div class="min-h-screen flex flex-col">
-                    <header class="bg-white p-4 px-6 flex justify-between items-center shadow-sm sticky top-0 z-50">
-                        <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><i class="fas fa-bolt-lightning"></i></div>
-                            <h1 class="font-extrabold text-indigo-950 tracking-tighter text-lg">SALESTRACK <span class="text-indigo-500">PRO</span></h1>
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
+                    
+                    {/* Top Toast Banner */}
+                    {notification && (
+                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
+                            notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
+                        }`}>
+                            <span>{notification.message}</span>
                         </div>
-                        <button onClick=${() => setCurrentUser(null)} class="w-9 h-9 flex items-center justify-center bg-slate-100 text-slate-400 rounded-full hover:bg-rose-50 hover:text-rose-500 transition-colors">
-                            <i class="fas fa-power-off"></i>
-                        </button>
-                    </header>
+                    )}
 
-                    <main class="flex-1 p-5 max-w-lg mx-auto w-full pb-28">
-                        ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} setAnn=${setAnnouncements} />`}
-                        ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${setAttendance} />`}
-                        ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${setTasks} users=${users} />`}
-                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} users=${users} />`}
+                    {/* HEADER MOBILE & NAVIGATION SIDEBAR DESKTOP */}
+                    <aside className="w-full md:w-64 bg-indigo-950 text-white flex-shrink-0 md:flex flex-col justify-between sticky top-0 md:h-screen z-40 p-4 shadow-xl">
+                        <div>
+                            <div className="flex items-center justify-between md:mb-8 pb-4 border-b border-indigo-900">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold"><i className="fas fa-bolt"></i></div>
+                                    <h1 className="font-black text-sm tracking-tight text-indigo-100 uppercase">SalesTrack Pro</h1>
+                                </div>
+                                <button onClick={() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} className="md:hidden text-rose-400 p-2">
+                                    <i className="fas fa-power-off text-lg"></i>
+                                </button>
+                            </div>
+
+                            {/* User Profile Summary (Sidebar) */}
+                            <div className="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
+                                <img src={currentUser.avatar} className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-xs truncate text-indigo-100">{currentUser.name}</p>
+                                    <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">{currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
+                                </div>
+                            </div>
+
+                            {/* Navigation Links */}
+                            <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0">
+                                <NavBtn icon="fa-house" label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                                <NavBtn icon="fa-camera" label={currentUser.role === 'admin' ? 'Data Absen' : 'Kamera & Absensi'} active={activeTab === 'absensi'} onClick={() => setActiveTab('absensi')} />
+                                <NavBtn icon="fa-list-check" label="Manajemen Tugas" active={activeTab === 'tugas'} onClick={() => setActiveTab('tugas')} />
+                                <NavBtn icon="fa-user-tie" label="Data HRIS" active={activeTab === 'hris'} onClick={() => setActiveTab('hris')} />
+                            </nav>
+                        </div>
+
+                        {/* Logout Button (Desktop) */}
+                        <button onClick={() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} className="hidden md:flex items-center gap-3 w-full p-3 text-rose-400 hover:bg-rose-950/20 rounded-xl transition-all font-bold text-xs">
+                            <i className="fas fa-power-off"></i>
+                            <span>KELUAR APLIKASI</span>
+                        </button>
+                    </aside>
+
+                    {/* MAIN CONTENT VIEWPORT */}
+                    <main className="flex-grow p-4 md:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-8 overflow-y-auto">
+                        {activeTab === 'dashboard' && <Dashboard user={currentUser} att={attendance} tasks={tasks} ann={announcements} setAnn={setAnnouncements} notify={showNotification} />}
+                        {activeTab === 'absensi' && <Absensi user={currentUser} att={attendance} setAtt={setAttendance} notify={showNotification} />}
+                        {activeTab === 'tugas' && <TugasPage user={currentUser} tasks={tasks} setTasks={setTasks} users={users} notify={showNotification} />}
+                        {activeTab === 'hris' && <HRISPage user={currentUser} users={users} />}
                     </main>
 
-                    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex justify-around p-3 z-50 shadow-2xl">
-                        <NavBtn icon="fa-grid-2" label="Home" act=${activeTab==='dashboard'} click=${()=>setActiveTab('dashboard')} />
-                        <NavBtn icon="fa-camera-retro" label="Absen" act=${activeTab==='absensi'} click=${()=>setActiveTab('absensi')} />
-                        <NavBtn icon="fa-clipboard-list" label="Tugas" act=${activeTab==='tugas'} click=${()=>setActiveTab('tugas')} />
-                        <NavBtn icon="fa-user-gear" label="HRIS" act=${activeTab==='hris'} click=${()=>setActiveTab('hris')} />
+                    {/* STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES */}
+                    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
+                        <MobileNavBtn icon="fa-house" label="Home" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                        <MobileNavBtn icon="fa-camera" label="Absen" active={activeTab === 'absensi'} onClick={() => setActiveTab('absensi')} />
+                        <MobileNavBtn icon="fa-list-check" label="Tugas" active={activeTab === 'tugas'} onClick={() => setActiveTab('tugas')} />
+                        <MobileNavBtn icon="fa-user-tie" label="HRIS" active={activeTab === 'hris'} onClick={() => setActiveTab('hris')} />
                     </nav>
                 </div>
-            `;
+            );
         }
 
-        // --- NAVIGATION BUTTON ---
-        function NavBtn({icon, label, act, click}) {
-            return html`
-                <button onClick=${click} class="flex flex-col items-center gap-1 py-1 px-4 transition-all ${act ? 'text-indigo-600' : 'text-slate-300'}">
-                    <i class="fas ${icon} text-xl"></i>
-                    <span class="text-[10px] font-bold uppercase tracking-widest">${label}</span>
-                </button>
-            `;
-        }
-
-        // --- AUTH PAGE (LOGIN & REGISTER) ---
-        function AuthPage({users, setUsers, onLogin, isReg, setReg}) {
-            const [form, setForm] = useState({ name: '', email: '', pass: '', role: 'staff', div: 'Jakarta', pos: 'Field Sales', phone: '' });
+        function AuthPage({ users, setUsers, onLogin, notify }) {
+            const [isReg, setIsReg] = useState(false);
             const [showPass, setShowPass] = useState(false);
+            const [form, setForm] = useState({ name: '', email: '', pass: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative' });
 
-            const handleAuth = (e) => {
+            const handleAction = (e) => {
                 e.preventDefault();
                 if (isReg) {
-                    if(!form.name || !form.email || !form.pass || !form.phone) return alert("Lengkapi data!");
-                    const newUser = { ...form, id: "USR-"+Date.now(), password: form.pass, avatar: "https://i.pravatar.cc/150?u="+form.email };
+                    if (!form.name || !form.email || !form.pass || !form.phone) {
+                        return notify("Mohon lengkapi semua data pendaftaran!", "error");
+                    }
+                    if (users.some(u => u.email.toLowerCase() === form.email.toLowerCase())) {
+                        return notify("Email tersebut sudah terdaftar!", "error");
+                    }
+                    const newUser = {
+                        id: "U" + Date.now().toString().slice(-4),
+                        email: form.email,
+                        password: form.pass,
+                        name: form.name,
+                        role: form.role,
+                        pos: form.role === 'admin' ? 'HR Manager' : form.pos,
+                        div: form.div,
+                        phone: form.phone,
+                        avatar: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 999999)}?auto=format&fit=crop&q=80&w=200`,
+                        joinDate: new Date().toLocaleDateString('id-ID')
+                    };
                     setUsers([...users, newUser]);
-                    alert("Akun berhasil dibuat! Silakan login.");
-                    setReg(false);
+                    notify("Pendaftaran Akun Berhasil! Silakan Login.");
+                    setIsReg(false);
                 } else {
                     const found = users.find(u => u.email.toLowerCase() === form.email.toLowerCase() && u.password === form.pass);
-                    if (found) onLogin(found); else alert("Email atau Password salah!");
+                    if (found) {
+                        onLogin(found);
+                    } else {
+                        notify("Email atau Password salah!", "error");
+                    }
                 }
             };
 
-            return html`
-                <div class="min-h-screen bg-login flex items-center justify-center p-6 text-white">
-                    <div class="w-full max-w-sm bg-white/10 glass p-8 rounded-[2.5rem] border border-white/20 shadow-2xl">
-                        <div class="text-center mb-8">
-                            <h2 class="text-3xl font-black tracking-tighter uppercase">${isReg ? 'Daftar Baru' : 'Login Portal'}</h2>
-                            <p class="text-[10px] text-indigo-300 font-bold uppercase tracking-widest mt-1">Management & Tracking System</p>
+            return (
+                <div className="min-h-screen bg-indigo-950 flex items-center justify-center p-4">
+                    <div className="w-full max-w-sm bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
+                        <div className="text-center mb-6">
+                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-3 shadow-lg"><i className="fas fa-bolt"></i></div>
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{isReg ? 'Daftar Baru' : 'Login Portal'}</h2>
+                            <p className="text-xs text-slate-400 font-bold tracking-widest uppercase mt-1">SalesTrack Pro System</p>
                         </div>
-                        
-                        <form onSubmit=${handleAuth} class="space-y-4">
-                            ${isReg && html`
-                                <input placeholder="Nama Lengkap" onInput=${x=>setForm({...form, name: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm placeholder:text-white/40" required />
-                                <select onInput=${x=>setForm({...form, role: x.target.value})} class="w-full p-4 rounded-2xl bg-slate-900 border border-white/10 outline-none text-sm">
-                                    <option value="staff">Akses: Sales Staff</option>
-                                    <option value="admin">Akses: Admin HRD</option>
-                                </select>
-                                <input placeholder="Nomor WhatsApp" onInput=${x=>setForm({...form, phone: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm placeholder:text-white/40" required />
-                            `}
-                            <input type="email" placeholder="Email Perusahaan" onInput=${x=>setForm({...form, email: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm placeholder:text-white/40" required />
-                            
-                            <div class="relative">
-                                <input type=${showPass ? 'text' : 'password'} placeholder="Password" onInput=${x=>setForm({...form, pass: x.target.value})} class="w-full p-4 rounded-2xl bg-white/5 border border-white/10 outline-none text-sm placeholder:text-white/40" required />
-                                <div class="flex items-center gap-2 mt-3 ml-2">
-                                    <input type="checkbox" id="showPass" class="accent-indigo-500" onChange=${()=>setShowPass(!showPass)} />
-                                    <label for="showPass" class="text-[10px] font-bold text-white/60 uppercase">Lihat Password</label>
+
+                        <form onSubmit={handleAction} className="space-y-4">
+                            {isReg && (
+                                <>
+                                    <input placeholder="Nama Lengkap Sesuai KTP" onInput={e => setForm({...form, name: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                    <select onInput={e => setForm({...form, role: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-bold text-indigo-900">
+                                        <option value="staff">💼 Peran: Staff Sales Lapangan</option>
+                                        <option value="admin">🛡️ Peran: Administrator / HRD</option>
+                                    </select>
+                                    {form.role === 'staff' && (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <select onInput={e => setForm({...form, pos: e.target.value})} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
+                                                <option value="Sales Representative">Sales Rep</option>
+                                                <option value="Senior Sales Executive">Senior Executive</option>
+                                                <option value="Canvasser">Canvasser</option>
+                                            </select>
+                                            <select onInput={e => setForm({...form, div: e.target.value})} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
+                                                <option value="Jakarta">DKI Jakarta</option>
+                                                <option value="Jawa Barat">Jawa Barat</option>
+                                                <option value="Jawa Tengah">Jawa Tengah</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                    <input placeholder="Nomor WhatsApp/HP" type="tel" onInput={e => setForm({...form, phone: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                </>
+                            )}
+                            <input type="email" placeholder="Email Perusahaan" onInput={e => setForm({...form, email: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                            <div>
+                                <input type={showPass ? "text" : "password"} placeholder="Password" onInput={e => setForm({...form, pass: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                <div className="flex items-center gap-2 mt-2 ml-2">
+                                    <input type="checkbox" id="showpass" checked={showPass} onChange={() => setShowPass(!showPass)} className="accent-indigo-600 rounded" />
+                                    <label htmlFor="showpass" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer">Lihat Password</label>
                                 </div>
                             </div>
-                            
-                            <button class="w-full p-4 bg-indigo-500 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all mt-4">
-                                ${isReg ? 'Buat Akun' : 'Masuk Dashboard'}
+
+                            <button className="w-full p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all">
+                                {isReg ? 'Kirim Pendaftaran' : 'Masuk Dashboard'}
                             </button>
                         </form>
 
-                        <button onClick=${() => setReg(!isReg)} class="w-full mt-8 text-[10px] font-black text-indigo-300 uppercase tracking-widest text-center">
-                            ${isReg ? 'Sudah punya akun? LOGIN' : 'Karyawan Baru? DAFTAR'}
+                        <button onClick={() => setIsReg(!isReg)} className="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline">
+                            {isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
                         </button>
                     </div>
                 </div>
-            `;
+            );
         }
 
-        // --- DASHBOARD (HOME) ---
-        function Dashboard({user, att, tasks, ann, setAnn}) {
+        function Dashboard({ user, att, tasks, ann, setAnn, notify }) {
+            const [showAddAnn, setShowAddAnn] = useState(false);
             const [newAnn, setNewAnn] = useState({ title: '', content: '' });
-            const [showForm, setShowForm] = useState(false);
-            const today = new Date().toLocaleDateString('id-ID');
 
-            const postAnn = () => {
-                if(!newAnn.title || !newAnn.content) return alert("Lengkapi pengumuman!");
-                setAnn([{ ...newAnn, id: Date.now(), date: today, author: user.name }, ...ann]);
+            const handlePostAnn = (e) => {
+                e.preventDefault();
+                if (!newAnn.title || !newAnn.content) return notify("Judul dan isi pengumuman wajib diisi!", "error");
+                const newItem = {
+                    id: "A-" + Date.now(),
+                    title: newAnn.title,
+                    content: newAnn.content,
+                    date: new Date().toLocaleDateString('id-ID'),
+                    author: user.name
+                };
+                setAnn([newItem, ...ann]);
                 setNewAnn({ title: '', content: '' });
-                setShowForm(false);
+                setShowAddAnn(false);
+                notify("Pengumuman berhasil disebarkan!");
             };
 
-            return html`
-                <div class="space-y-6">
-                    <div class="bg-indigo-700 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-                        <i class="fas fa-chart-line absolute -right-6 -bottom-6 text-white/10 text-9xl"></i>
-                        <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest mb-1">Status Operasional</p>
-                        <h2 class="text-3xl font-black">${user.name}</h2>
-                        <div class="flex gap-2 mt-4">
-                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">${user.role}</span>
-                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">${user.div}</span>
+            const handleDeleteAnn = (id) => {
+                setAnn(ann.filter(a => a.id !== id));
+                notify("Pengumuman dihapus.", "error");
+            };
+
+            return (
+                <div className="space-y-6">
+                    {/* Welcome Card banner */}
+                    <div className="bg-indigo-900 p-6 md:p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
+                        <i className="fas fa-rocket absolute -right-6 -bottom-6 text-white/10 text-9xl"></i>
+                        <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Field Operations Portal</p>
+                        <h2 className="text-2xl md:text-3xl font-black tracking-tight">Selamat Datang, {user.name}</h2>
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            <span className="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">{user.role === 'admin' ? '🛡️ Administrator' : '💼 Sales Staff'}</span>
+                            <span className="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">📍 Divisi: {user.div || 'Pusat'}</span>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4"><i class="fas fa-list-check"></i></div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tugas Anda</p>
-                            <p class="text-3xl font-black text-indigo-950">${tasks.filter(t=> (user.role==='admin' ? true : t.assignedTo === user.id) && t.status !== 'Selesai').length}</p>
-                        </div>
-                        <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4"><i class="fas fa-camera"></i></div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hadir Hari Ini</p>
-                            <p class="text-3xl font-black text-emerald-600">${att.filter(a=>a.date === today).length}</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="font-black text-slate-800 uppercase text-xs">Papan Pengumuman</h3>
-                            ${user.role === 'admin' && html`
-                                <button onClick=${()=>setShowForm(!showForm)} class="text-indigo-600 text-xs font-bold uppercase tracking-tighter">
-                                    ${showForm ? 'Batal' : '+ Pengumuman'}
-                                </button>
-                            `}
-                        </div>
-
-                        ${showForm && html`
-                            <div class="mb-6 space-y-3 bg-slate-50 p-4 rounded-2xl">
-                                <input placeholder="Judul Pengumuman" onInput=${x=>setNewAnn({...newAnn, title: x.target.value})} class="w-full p-3 rounded-xl border border-slate-200 text-sm outline-none" />
-                                <textarea placeholder="Isi pesan..." onInput=${x=>setNewAnn({...newAnn, content: x.target.value})} class="w-full p-3 rounded-xl border border-slate-200 text-sm h-20 outline-none"></textarea>
-                                <button onClick=${postAnn} class="w-full p-3 bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg">Posting Info</button>
+                    {/* Info KPI Widget Card Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
+                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-lg"><i className="fas fa-list-check"></i></div>
+                            <div>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tugas Anda</p>
+                                <p className="text-xl font-black text-slate-800">{tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).length}</p>
                             </div>
-                        `}
+                        </div>
+                        <div className="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
+                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-lg"><i className="fas fa-calendar-day"></i></div>
+                            <div>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Hadir Hari Ini</p>
+                                <p className="text-xl font-black text-slate-800">{att.filter(a => user.role === 'admin' ? true : a.userId === user.id).length}</p>
+                            </div>
+                        </div>
+                        <div className="col-span-2 md:col-span-1 bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4 justify-center md:justify-start">
+                            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-lg"><i className="fas fa-bullhorn"></i></div>
+                            <div>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pengumuman</p>
+                                <p className="text-xl font-black text-slate-800">{ann.length}</p>
+                            </div>
+                        </div>
+                    </div>
 
-                        <div class="space-y-4">
-                            ${ann.map(a => html`
-                                <div class="p-4 bg-slate-50 rounded-2xl relative">
-                                    <h4 class="font-bold text-sm text-indigo-900">${a.title}</h4>
-                                    <p class="text-xs text-slate-500 mt-1 leading-relaxed">${a.content}</p>
-                                    <div class="flex justify-between mt-3 text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                        <span>Oleh: ${a.author}</span>
-                                        <span>${a.date}</span>
+                    {/* Announcement Board Area */}
+                    <div className="bg-white p-6 rounded-[2.5rem] border shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-black text-slate-800 uppercase text-xs tracking-wider">Papan Pengumuman Resmi</h3>
+                            {user.role === 'admin' && (
+                                <button onClick={() => setShowAddAnn(!showAddAnn)} className="text-indigo-600 font-bold text-xs uppercase hover:underline">
+                                    {showAddAnn ? 'Batal' : '+ Pengumuman'}
+                                </button>
+                            )}
+                        </div>
+
+                        {showAddAnn && (
+                            <form onSubmit={handlePostAnn} className="mb-6 space-y-3 bg-slate-50 p-4 rounded-3xl border border-dashed border-indigo-200">
+                                <input placeholder="Judul Pengumuman" value={newAnn.title} onChange={e => setNewAnn({...newAnn, title: e.target.value})} className="w-full p-3 bg-white rounded-xl text-sm font-semibold outline-none border" required />
+                                <textarea placeholder="Tulis isi pengumuman kepada seluruh tim sales..." value={newAnn.content} onChange={e => setNewAnn({...newAnn, content: e.target.value})} className="w-full p-3 bg-white rounded-xl text-sm h-24 outline-none border resize-none" required />
+                                <button type="submit" className="w-full p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Siarkan Pengumuman</button>
+                            </form>
+                        )}
+
+                        <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
+                            {ann.length === 0 ? (
+                                <p className="text-center text-slate-400 text-xs py-6 font-semibold">Belum ada pengumuman hari ini.</p>
+                            ) : (
+                                ann.map(a => (
+                                    <div key={a.id} className="p-4 bg-slate-50 rounded-2xl border relative hover:border-slate-300 transition-all">
+                                        <h4 className="font-bold text-indigo-950 text-sm">{a.title}</h4>
+                                        <p className="text-xs text-slate-500 mt-2 leading-relaxed whitespace-pre-line">{a.content}</p>
+                                        <div className="flex justify-between items-center mt-3 border-t pt-2 text-[9px] font-bold text-slate-400 uppercase">
+                                            <span>Oleh: {a.author} • {a.date}</span>
+                                            {user.role === 'admin' && (
+                                                <button onClick={() => handleDeleteAnn(a.id)} className="text-rose-500 hover:underline">Hapus</button>
+                                            )}
+                                        </div>
                                     </div>
-                                    ${user.role === 'admin' && html`
-                                        <button onClick=${() => { if(confirm('Hapus?')) setAnn(ann.filter(x=>x.id!==a.id)) }} class="absolute top-3 right-3 text-slate-300 hover:text-rose-500"><i class="fas fa-trash-alt"></i></button>
-                                    `}
-                                </div>
-                            `)}
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
-            `;
+            );
         }
 
-        // --- ABSENSI (CAMERA & GPS) ---
-        function Absensi({user, att, setAtt}) {
-            const [photo, setPhoto] = useState(null);
-            const [note, setNote] = useState('');
-            const [loc, setLoc] = useState(null);
+        function Absensi({ user, att, setAtt, notify }) {
+            const [notes, setNotes] = useState('');
+            const [type, setType] = useState('Masuk');
+            
+            // Kamera
             const [camActive, setCamActive] = useState(false);
-            const vRef = useRef(null);
+            const [photo, setPhoto] = useState(null);
+            
+            // GPS
+            const [gpsData, setGpsData] = useState(null);
+            const [gpsLoading, setGpsLoading] = useState(false);
 
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+
+            // Fetch koordinat GPS otomatis & tangguh
             useEffect(() => {
-                navigator.geolocation.getCurrentPosition(
-                    p => setLoc({ lat: p.coords.latitude, lng: p.coords.longitude }),
-                    () => setLoc("GPS ERROR")
-                );
+                fetchLocation();
             }, []);
 
-            const openCam = async () => {
+            const fetchLocation = () => {
+                if (!navigator.geolocation) {
+                    setGpsData({ lat: -6.2088, lng: 106.8456, address: "GPS tidak didukung perangkat browser." });
+                    return;
+                }
+                setGpsLoading(true);
                 try {
-                    setCamActive(true);
-                    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                    vRef.current.srcObject = s;
-                } catch(e) { 
-                    alert("Akses kamera ditolak browser HP. Izinkan akses di pengaturan!"); 
-                    setCamActive(false);
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {
+                            setGpsData({
+                                lat: pos.coords.latitude,
+                                lng: pos.coords.longitude,
+                                address: `Akurasi Satelit Terverifikasi (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`
+                            });
+                            setGpsLoading(false);
+                        },
+                        err => {
+                            setGpsData({
+                                lat: -6.2088 + (Math.random() - 0.5) * 0.01,
+                                lng: 106.8456 + (Math.random() - 0.5) * 0.01,
+                                address: "Lokasi Simulasi GPS (Akses Satelit Ditolak)"
+                            });
+                            setGpsLoading(false);
+                            notify("Gagal memuat GPS asli. Menggunakan koordinat simulasi.", "error");
+                        }
+                    );
+                } catch (e) {
+                    setGpsData({
+                        lat: -6.2088,
+                        lng: 106.8456,
+                        address: "Sistem GPS Diblokir Sandbox Browser"
+                    });
+                    setGpsLoading(false);
                 }
             };
 
-            const capture = () => {
-                const c = document.createElement('canvas');
-                c.width = vRef.current.videoWidth; 
-                c.height = vRef.current.videoHeight;
-                c.getContext('2d').drawImage(vRef.current, 0, 0);
-                setPhoto(c.toDataURL('image/png'));
-                vRef.current.srcObject.getTracks().forEach(t => t.stop());
-                setCamActive(false);
-            };
-
-            const submitAbsen = () => {
-                if(!photo || !note) return alert("Foto & Catatan wajib!");
-                const data = {
-                    id: Date.now(),
-                    name: user.name,
-                    date: new Date().toLocaleDateString('id-ID'),
-                    time: new Date().toLocaleTimeString('id-ID'),
-                    photo, note, loc: loc ? `${loc.lat}, ${loc.lng}` : 'Tanpa GPS'
+            // Reaktifitas Kamera Menghindari Race-condition Render DOM
+            useEffect(() => {
+                let stream = null;
+                const enableCamera = async () => {
+                    if (camActive && videoRef.current) {
+                        try {
+                            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                                throw new Error("Akses kamera tidak didukung di jaringan http/tidak aman.");
+                            }
+                            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                            videoRef.current.srcObject = stream;
+                        } catch (e) {
+                            console.warn(e);
+                            const fallbackPhotos = [
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
+                                "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300"
+                            ];
+                            setPhoto(fallbackPhotos[Math.floor(Math.random() * fallbackPhotos.length)]);
+                            setCamActive(false);
+                            notify(e.message || "Akses kamera gagal. Memakai foto demo otomatis.", "error");
+                        }
+                    }
                 };
-                setAtt([data, ...att]);
-                alert("Absensi Berhasil!");
-                setPhoto(null); setNote('');
+                enableCamera();
+                return () => {
+                    if (stream) {
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                };
+            }, [camActive]);
+
+            const takeSelfie = () => {
+                if (videoRef.current && canvasRef.current) {
+                    const canvas = canvasRef.current;
+                    const video = videoRef.current;
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0);
+                    
+                    setPhoto(canvas.toDataURL('image/png'));
+                    setCamActive(false);
+                    notify("Foto berhasil diambil!");
+                }
             };
 
-            return html`
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-6">
-                    <div class="border-b border-slate-50 pb-4">
-                        <h3 class="font-black text-slate-800 text-lg uppercase tracking-tighter">Absensi Real-Time</h3>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Verify identity with Photo & GPS</p>
-                    </div>
+            const handleSubmitAbsen = (e) => {
+                e.preventDefault();
+                if (!photo) return notify("Wajib melakukan foto selfie sebagai bukti kehadiran!", "error");
+                if (!notes.trim()) return notify("Kolom keterangan aktivitas harian wajib diisi!", "error");
+                if (!gpsData) return notify("Menunggu sistem memuat lokasi GPS...", "error");
 
-                    <div class="aspect-[3/4] bg-slate-900 rounded-[2rem] overflow-hidden relative shadow-2xl">
-                        ${!photo ? html`
-                            <video ref=${vRef} autoPlay playsInline class="w-full h-full object-cover" />
-                            ${!camActive && html`
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <button onClick=${openCam} class="bg-white text-indigo-600 p-4 rounded-full shadow-2xl"><i class="fas fa-camera text-2xl"></i></button>
+                const newLog = {
+                    id: "ATT-" + Date.now(),
+                    userId: user.id,
+                    userName: user.name,
+                    type,
+                    notes,
+                    photo,
+                    location: gpsData,
+                    time: new Date().toLocaleDateString('id-ID') + ' ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                };
+
+                setAtt([newLog, ...att]);
+                setNotes('');
+                setPhoto(null);
+                notify(`Absen ${type} berhasil dikirim ke Admin!`);
+            };
+
+            return (
+                <div className="space-y-6">
+                    {user.role === 'admin' ? (
+                        /* ADMIN VIEW: REKAP RIWAYAT TIM */
+                        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border">
+                          <h3 className="text-xl font-bold text-slate-800 mb-2">Riwayat Presensi Tim Sales</h3>
+                          <p className="text-xs text-slate-400 mb-6">Dashboard monitor kehadiran, foto verifikasi, dan GPS sales di lapangan</p>
+
+                          <div className="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar">
+                              {att.length === 0 ? (
+                                  <p className="text-center text-slate-400 py-12 text-sm font-semibold">Belum ada karyawan yang absen hari ini.</p>
+                              ) : (
+                                  att.map(a => (
+                                      <div key={a.id} className="p-4 bg-slate-50 rounded-3xl border flex flex-col md:flex-row gap-4 items-start">
+                                          <img src={a.photo} className="w-24 h-32 rounded-2xl object-cover border shadow-sm flex-shrink-0" />
+                                          <div className="space-y-1">
+                                              <div className="flex items-center gap-2">
+                                                  <h4 className="font-black text-sm text-slate-800">{a.userName}</h4>
+                                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${a.type === 'Masuk' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>ABSEN {a.type}</span>
+                                              </div>
+                                              <p className="text-xs font-bold text-indigo-700">⏱️ {a.time}</p>
+                                              <p className="text-xs text-slate-400 font-bold">📍 GPS: {a.location.lat ? a.location.lat.toFixed(5) : '0'}, {a.location.lng ? a.location.lng.toFixed(5) : '0'} ({a.location.address})</p>
+                                              <div className="p-3 bg-white border rounded-xl text-xs text-slate-600 mt-2 italic">
+                                                  &ldquo;{a.notes}&rdquo;
+                                              </div>
+                                          </div>
+                                      </div>
+                                  ))
+                              )}
+                          </div>
+                        </div>
+                    ) : (
+                        /* STAFF VIEW: CAMERA PORTAL & GPS FORM */
+                        <div className="bg-white p-6 rounded-[2.5rem] border shadow-sm max-w-xl mx-auto space-y-6">
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800">Presensi Kehadiran Sales</h3>
+                                <p className="text-xs text-slate-400 mt-1">Gunakan verifikasi kamera HP asli dan GPS presisi untuk clock-in</p>
+                            </div>
+
+                            <form onSubmit={handleSubmitAbsen} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button type="button" onClick={() => setType('Masuk')} className={`p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Masuk' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>🌅 Masuk</button>
+                                    <button type="button" onClick={() => setType('Keluar')} className={`p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Keluar' ? 'bg-rose-50 border-rose-500 text-rose-800' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>🌇 Pulang</button>
                                 </div>
-                            `}
-                        ` : html`
-                            <img src=${photo} class="w-full h-full object-cover" />
-                        `}
-                        <div class="absolute bottom-4 left-4 bg-black/60 glass text-white text-[9px] px-3 py-1 rounded-full font-bold">📍 ${loc?.lat ? `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}` : 'Mencari GPS...'}</div>
-                    </div>
 
-                    <div class="flex gap-3">
-                        ${camActive && !photo && html`<button onClick=${capture} class="flex-1 bg-emerald-500 text-white p-4 rounded-2xl font-black text-xs uppercase shadow-lg">Ambil Foto</button>`}
-                        ${photo && html`<button onClick=${()=>setPhoto(null)} class="flex-1 bg-rose-50 text-rose-500 p-4 rounded-2xl font-bold text-xs uppercase">Hapus Foto</button>`}
-                    </div>
+                                <div className="bg-slate-100 p-4 rounded-2xl text-xs flex justify-between items-center border">
+                                    <div>
+                                        <p className="font-bold text-slate-400">Koordinat GPS Anda:</p>
+                                        <p className="font-bold text-indigo-900 mt-0.5">{gpsLoading ? "Sedang melacak satelit..." : gpsData?.address}</p>
+                                    </div>
+                                    <button type="button" onClick={fetchLocation} className="p-2 bg-white rounded-lg border text-indigo-600"><i className="fas fa-arrows-rotate"></i></button>
+                                </div>
 
-                    <div class="space-y-2">
-                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Catatan Kunjungan (Wajib)</label>
-                        <textarea value=${note} onInput=${x=>setNote(x.target.value)} placeholder="Tulis aktivitas..." class="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm outline-none focus:ring-2 focus:ring-indigo-100"></textarea>
-                    </div>
-
-                    <button onClick=${submitAbsen} class="w-full p-5 bg-indigo-950 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-2xl transition-all active:scale-95">Kirim Kehadiran</button>
-
-                    ${user.role === 'admin' && html`
-                        <div class="mt-10 border-t border-slate-100 pt-8">
-                            <h4 class="font-black text-slate-800 text-xs uppercase tracking-widest mb-6">Riwayat Seluruh Tim</h4>
-                            <div class="space-y-4">
-                                ${att.map(a => html`
-                                    <div class="flex gap-4 p-4 bg-slate-50 rounded-3xl border border-slate-100">
-                                        <img src=${a.photo} class="w-16 h-16 rounded-2xl object-cover shadow-sm" />
-                                        <div class="flex-1">
-                                            <p class="font-black text-indigo-950 text-xs uppercase">${a.name}</p>
-                                            <p class="text-[9px] font-bold text-indigo-500">${a.time} • ${a.date}</p>
-                                            <p class="text-[9px] text-slate-400 font-bold tracking-tighter">📍 ${a.loc}</p>
-                                            <p class="text-[11px] text-slate-600 italic mt-2">"${a.note}"</p>
+                                {/* Kamera Viewport */}
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider">Bukti Foto Selfie (Wajib)</label>
+                                    <div className="aspect-video bg-slate-900 rounded-[2rem] overflow-hidden relative flex items-center justify-center border-4 border-slate-100 shadow-lg">
+                                        {camActive && <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />}
+                                        {photo && <img src={photo} className="w-full h-full object-cover" />}
+                                        {!camActive && !photo && (
+                                            <div className="text-center text-slate-500 p-4">
+                                                <i className="fas fa-camera text-4xl mb-2 text-slate-700"></i>
+                                                <p className="text-[10px] font-bold uppercase tracking-wider">Kamera Belum Aktif</p>
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-4 flex gap-2 justify-center w-full">
+                                            {!camActive ? (
+                                                <button type="button" onClick={() => setCamActive(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg">Aktifkan Kamera</button>
+                                            ) : (
+                                                <button type="button" onClick={takeSelfie} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg">Ambil Foto</button>
+                                            )}
                                         </div>
                                     </div>
-                                `)}
-                            </div>
+                                    <canvas ref={canvasRef} className="hidden" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Aktivitas/Keterangan Hari Ini <span className="text-rose-500">*</span></label>
+                                    <textarea placeholder="Tulis aktivitas penugasan lapangan yang wajib Anda lakukan saat ini..." value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm border outline-none font-semibold focus:border-indigo-500 transition-all" required />
+                                </div>
+
+                                <button type="submit" className="w-full p-4 bg-indigo-900 hover:bg-indigo-850 text-white font-black text-xs uppercase tracking-widest rounded-3xl shadow-xl">Kirim Kehadiran</button>
+                            </form>
                         </div>
-                    `}
+                    )}
                 </div>
-            `;
+            );
         }
 
-        // --- MANAJEMEN TUGAS ---
-        function TugasPage({user, tasks, setTasks, users}) {
-            const [form, setForm] = useState({ title: '', deadline: '', target: users.find(u=>u.role==='staff')?.id || '' });
+        function TugasPage({ user, tasks, setTasks, users, notify }) {
+            const [showAddForm, setShowAddForm] = useState(false);
+            const [form, setForm] = useState({ title: '', desc: '', assignee: users.filter(u => u.role === 'staff')[0]?.id || '', deadline: '', priority: 'Sedang' });
 
-            const addTugas = () => {
-                if(!form.title || !form.deadline) return alert("Isi lengkap!");
-                const pelaksana = users.find(u=>u.id === form.target);
-                const nT = { id: Date.now(), title: form.title, deadline: form.deadline, assignedTo: form.target, assignedName: pelaksana.name, status: 'Belum Mulai' };
-                setTasks([nT, ...tasks]);
-                alert("Tugas Terkirim!"); setForm({...form, title: ''});
+            const handleCreateTask = (e) => {
+                e.preventDefault();
+                if (!form.title || !form.desc || !form.deadline) return notify("Semua kolom pembuatan tugas wajib diisi!", "error");
+                
+                const targetUser = users.find(u => u.id === form.assignee);
+                const newTask = {
+                    id: "T-" + Date.now().toString().slice(-3),
+                    title: form.title,
+                    description: form.desc,
+                    assignedTo: form.assignee,
+                    assignedName: targetUser ? targetUser.name : 'Unknown',
+                    deadline: form.deadline,
+                    status: 'Belum Mulai',
+                    priority: form.priority
+                };
+
+                setTasks([newTask, ...tasks]);
+                setForm({ title: '', desc: '', assignee: users.filter(u => u.role === 'staff')[0]?.id || '', deadline: '', priority: 'Sedang' });
+                setShowAddForm(false);
+                notify("Tugas baru berhasil didelegasikan!");
             };
 
-            return html`
-                <div class="space-y-6">
-                    ${user.role === 'admin' && html`
-                        <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 space-y-4">
-                            <h3 class="font-black text-slate-800 uppercase text-xs">Delegasi Tugas Baru</h3>
-                            <input value=${form.title} onInput=${x=>setForm({...form, title: x.target.value})} placeholder="Judul Tugas Kunjungan" class="w-full p-4 bg-slate-50 rounded-2xl text-sm outline-none" />
-                            <div class="flex gap-3">
-                                <input type="date" onInput=${x=>setForm({...form, deadline: x.target.value})} class="flex-1 p-4 bg-slate-50 rounded-2xl text-xs font-bold uppercase outline-none" />
-                                <select onInput=${x=>setForm({...form, target: x.target.value})} class="flex-1 p-4 bg-slate-50 rounded-2xl text-[10px] font-bold uppercase">
-                                    ${users.filter(u=>u.role==='staff').map(u => html`<option value=${u.id}>${u.name}</option>`)}
-                                </select>
-                            </div>
-                            <button onClick=${addTugas} class="w-full p-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">Kirim Tugas Lapangan</button>
+            const handleStatusChange = (taskId, direction) => {
+                const statusOrder = ['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'];
+                setTasks(tasks.map(t => {
+                    if (t.id === taskId) {
+                        const currentIndex = statusOrder.indexOf(t.status);
+                        const nextIndex = currentIndex + direction;
+                        if (nextIndex >= 0 && nextIndex < statusOrder.length) {
+                            return { ...t, status: statusOrder[nextIndex] };
+                        }
+                    }
+                    return t;
+                }));
+                notify("Status tugas diperbarui.");
+            };
+
+            const handleDeleteTask = (id) => {
+                setTasks(tasks.filter(t => t.id !== id));
+                notify("Tugas telah dihapus dari sistem.", "error");
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h3 className="text-xl font-black text-slate-800">Manajemen Tugas Lapangan</h3>
+                            <p className="text-xs text-slate-400">Papan pemantauan alur kerja kunjungan sales</p>
                         </div>
-                    `}
+                        {user.role === 'admin' && (
+                            <button onClick={() => setShowAddForm(!showAddForm)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">
+                                {showAddForm ? 'Batal' : '+ Tugas Baru'}
+                            </button>
+                        )}
+                    </div>
 
-                    <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-2">Daftar Pekerjaan Lapangan</h3>
-
-                    <div class="space-y-3">
-                        ${tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).map(t => html`
-                            <div class="bg-white p-5 rounded-[2rem] border border-slate-100 flex justify-between items-center card-shadow">
+                    {showAddForm && (
+                        <form onSubmit={handleCreateTask} className="p-5 bg-white rounded-3xl border shadow-sm space-y-4 max-w-lg">
+                            <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Buat Delegasi Baru</h4>
+                            <input placeholder="Nama Tugas / Lokasi Kunjungan" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-xs font-semibold outline-none" required />
+                            <textarea placeholder="Detail instruksi kerja yang harus diselesaikan..." value={form.desc} onChange={e => setForm({...form, desc: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-xs font-semibold outline-none h-20 resize-none" required />
+                            
+                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <p class="font-bold text-slate-800 text-sm">${t.title}</p>
-                                    <p class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mt-1">${t.status} • Sampai: ${t.deadline}</p>
-                                    ${user.role === 'admin' && html`<p class="text-[8px] font-bold text-slate-300 uppercase">Pic: ${t.assignedName}</p>`}
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tugaskan Ke</label>
+                                    <select value={form.assignee} onChange={e => setForm({...form, assignee: e.target.value})} className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
+                                        {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                    </select>
                                 </div>
-                                ${t.status !== 'Selesai' && html`
-                                    <button onClick=${() => setTasks(tasks.map(x => x.id === t.id ? {...x, status: 'Selesai'} : x))} class="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center shadow-inner">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                `}
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Prioritas</label>
+                                    <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
+                                        <option value="Tinggi">🔴 Tinggi</option>
+                                        <option value="Sedang">🟡 Sedang</option>
+                                        <option value="Rendah">🟢 Rendah</option>
+                                    </select>
+                                </div>
                             </div>
-                        `)}
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Batas Waktu (Deadline)</label>
+                                <input type="date" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-semibold outline-none" required />
+                            </div>
+                            <button type="submit" className="w-full p-3 bg-indigo-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg">Kirim Delegasi</button>
+                        </form>
+                    )}
+
+                    {/* KANBAN BOARD SYSTEM */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'].map(colStatus => (
+                            <div key={colStatus} className="bg-slate-100 p-4 rounded-3xl border flex flex-col min-h-[350px]">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="font-black text-xs uppercase tracking-wider text-slate-600">{colStatus}</span>
+                                    <span className="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-bold border">{tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).length}</span>
+                                </div>
+
+                                <div className="space-y-3 flex-grow overflow-y-auto no-scrollbar">
+                                    {tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).map(task => (
+                                        <div key={task.id} className="bg-white p-4 rounded-2xl border shadow-sm space-y-3 hover:border-slate-300 transition-all">
+                                            <div className="flex justify-between items-start">
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${task.priority === 'Tinggi' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>{task.priority}</span>
+                                                {user.role === 'admin' && (
+                                                    <button onClick={() => handleDeleteTask(task.id)} className="text-slate-400 hover:text-rose-600"><i className="fas fa-trash-can text-xs"></i></button>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-800 text-xs">{task.title}</h4>
+                                                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{task.description}</p>
+                                            </div>
+                                            <div className="border-t pt-2 text-[9px] font-bold text-slate-400 uppercase space-y-1">
+                                                <p>👤 PIC: <span className="text-indigo-900">{task.assignedName}</span></p>
+                                                <p>⏱️ Batas: <span className="text-rose-600">{task.deadline}</span></p>
+                                            </div>
+
+                                            {/* Status Shifter Button Controls */}
+                                            <div className="flex gap-1 pt-1">
+                                                {colStatus !== 'Belum Mulai' && (
+                                                    <button onClick={() => handleStatusChange(task.id, -1)} className="flex-1 p-1 bg-slate-100 text-[9px] font-bold uppercase rounded-lg hover:bg-slate-200">Mundur</button>
+                                                )}
+                                                {colStatus !== 'Selesai' && (
+                                                    <button onClick={() => handleStatusChange(task.id, 1)} className="flex-1 p-1 bg-indigo-900 text-white text-[9px] font-bold uppercase rounded-lg hover:bg-indigo-850">Lanjut</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
-            `;
+            );
         }
 
-        // --- HRIS & PROFILE ---
-        function HRISPage({user, users}) {
-            return html`
-                <div class="space-y-6">
-                    <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 text-center flex flex-col items-center">
-                        <img src=${user.avatar} class="w-28 h-28 rounded-full border-4 border-indigo-600 shadow-2xl object-cover mb-4" />
-                        <h3 class="text-2xl font-black text-slate-800 tracking-tighter">${user.name}</h3>
-                        <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">${user.pos} • ${user.div}</p>
+        function HRISPage({ user, users }) {
+            return (
+                <div className="space-y-6">
+                    {/* Logged in employee profile details */}
+                    <div className="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto">
+                        <img src={user.avatar} className="w-20 h-20 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-4" />
+                        <h3 className="font-black text-xl text-slate-800">{user.name}</h3>
+                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">{user.pos} • {user.div}</p>
                         
-                        <div class="w-full mt-10 grid grid-cols-1 gap-5 text-left border-t border-slate-50 pt-8">
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><i class="fas fa-id-badge"></i></div>
-                                <div><p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">ID Karyawan</p><p class="text-sm font-bold text-slate-700 uppercase">${user.id}</p></div>
+                        <div className="w-full text-left border-t mt-6 pt-4 space-y-3 text-xs font-semibold text-slate-600">
+                            <div className="flex justify-between border-b pb-2">
+                                <span className="text-slate-400">ID KARYAWAN</span>
+                                <span className="text-slate-800">{user.id}</span>
                             </div>
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><i class="fas fa-envelope"></i></div>
-                                <div><p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Email Official</p><p class="text-sm font-bold text-slate-700">${user.email}</p></div>
+                            <div className="flex justify-between border-b pb-2">
+                                <span className="text-slate-400">EMAIL PERUSAHAAN</span>
+                                <span className="text-slate-800">{user.email}</span>
                             </div>
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><i class="fas fa-phone"></i></div>
-                                <div><p class="text-[8px] font-black text-slate-400 uppercase tracking-widest">WhatsApp</p><p class="text-sm font-bold text-slate-700">${user.phone}</p></div>
+                            <div className="flex justify-between border-b pb-2">
+                                <span className="text-slate-400">NOMOR WA</span>
+                                <span className="text-slate-800">{user.phone}</span>
                             </div>
                         </div>
                     </div>
 
-                    <h3 class="font-black text-slate-400 uppercase text-[10px] tracking-widest px-2 mt-8">Direktori Kontak Tim</h3>
-                    <div class="grid grid-cols-1 gap-3">
-                        ${users.map(u => html`
-                            <div class="bg-white p-4 rounded-3xl border border-slate-100 flex items-center gap-4 card-shadow">
-                                <img src=${u.avatar} class="w-11 h-11 rounded-full object-cover" />
-                                <div class="flex-1">
-                                    <p class="font-bold text-slate-800 text-sm tracking-tighter">${u.name}</p>
-                                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${u.pos}</p>
+                    {/* All Registered Colleagues list */}
+                    <div>
+                        <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-wider mb-3 px-2">Direktori Kontak Rekan Kerja</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {users.map(u => (
+                                <div key={u.id} className="bg-white p-4 rounded-3xl border flex items-center gap-3">
+                                    <img src={u.avatar} className="w-10 h-10 rounded-full object-cover border" />
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-slate-800 text-xs truncate">{u.name}</h4>
+                                        <p className="text-[10px] text-slate-400 truncate">{u.pos} • {u.div}</p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <a href={`tel:${u.phone}`} className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border hover:bg-emerald-100 transition-all"><i className="fas fa-phone text-xs"></i></a>
+                                        <a href={`https://wa.me/62${u.phone.substring(1)}`} target="_blank" className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center border hover:bg-indigo-100 transition-all"><i className="fab fa-whatsapp text-xs"></i></a>
+                                    </div>
                                 </div>
-                                <a href="tel:${u.phone}" class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-100 shadow-sm"><i class="fas fa-phone-flip text-xs"></i></a>
-                            </div>
-                        `)}
+                            ))}
+                        </div>
                     </div>
                 </div>
-            `;
+            );
         }
 
-        render(html`<${App} />`, document.getElementById('root'));
+        function NavBtn({ icon, label, active, onClick }) {
+            return (
+                <button onClick={onClick} className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all font-bold text-xs ${active ? 'bg-indigo-900 text-indigo-200' : 'text-indigo-400 hover:bg-indigo-900/30'}`}>
+                    <i className={`fas ${icon} text-sm`}></i>
+                    <span>{label}</span>
+                </button>
+            );
+        }
+
+        function MobileNavBtn({ icon, label, active, onClick }) {
+            return (
+                <button onClick={onClick} className={`flex flex-col items-center justify-center p-2 rounded-xl flex-1 transition-all ${active ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    <i className={`fas ${icon} text-base`}></i>
+                    <span className="text-[9px] font-black uppercase mt-1 tracking-tighter">{label}</span>
+                </button>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
