@@ -38,6 +38,7 @@
         const { useState, useEffect, useRef } = window.preactHooks;
         const html = window.htm.bind(window.preact.h);
 
+        // Data Cadangan Awal jika Cloud Belum Terkoneksi
         const INITIAL_USERS = [
             { 
                 id: "U001", 
@@ -91,6 +92,7 @@
             }
         ];
 
+        // Penanganan Error Penyimpanan Lokal Sandbox
         const safeGetItem = (key, fallback) => {
             try {
                 const value = localStorage.getItem(key);
@@ -121,6 +123,7 @@
             const [activeTab, setActiveTab] = useState('dashboard');
             const [notification, setNotification] = useState(null);
             const [showResetModal, setShowResetModal] = useState(false);
+            const [isAutoSyncing, setIsAutoSyncing] = useState(false);
 
             // Penyinkronan otomatis data state ke memori penyimpanan lokal HP
             useEffect(() => {
@@ -131,6 +134,38 @@
                 safeSetItem('st_ann_v2.2', announcements);
                 safeSetItem('st_gsheet_url_v2.2', gsheetUrl);
             }, [users, currentUser, attendance, tasks, announcements, gsheetUrl]);
+
+            // FITUR SOLUSI AUTO-PULL: Lakukan sinkronisasi otomatis dari cloud saat aplikasi dibuka
+            useEffect(() => {
+                if (gsheetUrl) {
+                    autoPullFromCloud();
+                }
+            }, [gsheetUrl]);
+
+            const autoPullFromCloud = async () => {
+                setIsAutoSyncing(true);
+                try {
+                    const response = await fetch(gsheetUrl);
+                    const data = await response.json();
+                    if (data && data.users && data.tasks) {
+                        setUsers(data.users);
+                        setAttendance(data.attendance || []);
+                        setTasks(data.tasks);
+                        setAnnouncements(data.announcements || []);
+                        
+                        // Perbarui data user saat ini jika ada perubahan biodata dari pusat
+                        if (currentUser) {
+                            const updatedMe = data.users.find(u => u.id === currentUser.id);
+                            if (updatedMe) setCurrentUser(updatedMe);
+                        }
+                        console.log("Database awan berhasil diperbarui secara otomatis!");
+                    }
+                } catch (e) {
+                    console.warn("Auto-Pull ditangguhkan: Menunggu jaringan stabil atau otorisasi.", e);
+                } finally {
+                    setIsAutoSyncing(false);
+                }
+            };
 
             const showNotification = (message, type = 'success') => {
                 setNotification({ message, type });
@@ -152,6 +187,10 @@
                         onLogin=${(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
                         notify=${showNotification}
                         onReset=${() => setShowResetModal(true)}
+                        gsheetUrl=${gsheetUrl}
+                        setGsheetUrl=${setGsheetUrl}
+                        onSync=${autoPullFromCloud}
+                        isSyncing=${isAutoSyncing}
                     />
                 `;
             }
@@ -256,7 +295,7 @@
                         <${MobileNavBtn} icon="fa-house" label="Home" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
                         <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
                         <${MobileNavBtn} icon="fa-list-check" label="Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
-                        <${MobileNavBtn} icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
+                        <MobileNavBtn icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
                         ${currentUser.role === 'admin' && html`
                             <${MobileNavBtn} icon="fa-database" label="DB" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
                         `}
@@ -265,12 +304,12 @@
             `;
         }
 
-        function AuthPage({ users, setUsers, onLogin, notify, onReset }) {
+        function AuthPage({ users, setUsers, onLogin, notify, onReset, gsheetUrl, setGsheetUrl, onSync, isSyncing }) {
             const [isReg, setIsReg] = useState(false);
             const [showPass, setShowPass] = useState(false);
             const [form, setForm] = useState({ name: '', email: '', pass: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative' });
 
-            const handleAction = (e) => {
+            const handleAction = async (e) => {
                 e.preventDefault();
                 if (isReg) {
                     if (!form.name || !form.email || !form.pass || !form.phone) {
@@ -295,10 +334,31 @@
                     notify("Pendaftaran Akun Berhasil! Silakan Login.");
                     setIsReg(false);
                 } else {
+                    // SEBELUM VALIDASI LOGIN: Lakukan fetch darurat dari cloud jika ada URL terpasang untuk menghindari data out-of-sync
+                    if (gsheetUrl) {
+                        try {
+                            const res = await fetch(gsheetUrl);
+                            const cloudData = await res.json();
+                            if (cloudData && cloudData.users) {
+                                setUsers(cloudData.users);
+                                // Lakukan pencocokan ulang terhadap data ter-sinkronisasi Google Sheet
+                                const foundCloud = cloudData.users.find(u => u.email.toLowerCase() === form.email.toLowerCase() && u.password === form.pass);
+                                if (foundCloud) {
+                                    onLogin(foundCloud);
+                                    return;
+                                }
+                            }
+                        } catch(err) {
+                            console.warn("Gagal menyinkronkan sebelum login, menggunakan DB lokal", err);
+                        }
+                    }
+
+                    // Validasi Database Lokal
                     const found = users.find(u => u.email.toLowerCase() === form.email.toLowerCase() && u.password === form.pass);
                     if (found) {
                         onLogin(found);
                     } else {
+                        // FITUR REVISI: Tampilkan pesan eror 'salah' secara jelas pada notifikasi UI
                         notify("Email atau Password salah!", "error");
                     }
                 }
@@ -332,6 +392,7 @@
                                                 <option value="Jakarta">DKI Jakarta</option>
                                                 <option value="Jawa Barat">Jawa Barat</option>
                                                 <option value="Jawa Tengah">Jawa Tengah</option>
+                                                <option value="Bandung">Bandung</option>
                                             </select>
                                         </div>
                                     `}
@@ -355,9 +416,22 @@
                         <button onClick=${() => setIsReg(!isReg)} class="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline text-center">
                             ${isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
                         </button>
+
+                        <!-- Panel Koneksi Cepat Database Awan untuk mempermudah pendaftaran awal HP -->
+                        ${!isReg && html`
+                            <div class="mt-6 pt-4 border-t border-slate-100 text-center space-y-2">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Sambungan Cloud Google</p>
+                                <div class="flex gap-1.5">
+                                    <input placeholder="URL Apps Script..." value=${gsheetUrl} onInput=${e => setGsheetUrl(e.target.value)} class="flex-1 p-2 rounded-xl bg-slate-50 border text-[9px] outline-none" />
+                                    <button onClick=${onSync} disabled=${isSyncing} class="p-2 bg-emerald-600 text-white rounded-xl text-[9px] font-bold uppercase">
+                                        ${isSyncing ? "..." : "Sync"}
+                                    </button>
+                                </div>
+                            </div>
+                        `}
                     </div>
 
-                    <div class="fixed bottom-4 text-center">
+                    <div class="mt-6 text-center">
                         <button onClick=${onReset} class="text-[9px] text-slate-500 hover:text-white uppercase tracking-wider font-bold">
                             Reset Database Aplikasi
                         </button>
@@ -480,7 +554,6 @@
                                     <h4 class="font-bold text-indigo-950 text-sm">${a.title}</h4>
                                     <p class="text-xs text-slate-500 leading-relaxed whitespace-pre-line">${a.content}</p>
                                     
-                                    <!-- Render Media Lampiran Secara Cerdas -->
                                     ${a.attachment && html`
                                         <div class="mt-2 border-t pt-2">
                                             ${a.attachmentType?.startsWith('image/') ? html`
@@ -700,7 +773,7 @@
                                     <textarea placeholder="Tulis aktivitas penugasan harian yang harus dilaporkan..." value=${notes} onInput=${e => setNotes(e.target.value)} class="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm border outline-none font-semibold focus:border-indigo-500 transition-all" required />
                                 </div>
 
-                                <button type="submit" class="w-full p-4 bg-indigo-900 hover:bg-indigo-850 text-white font-black text-xs uppercase tracking-widest rounded-3xl shadow-xl">Kirim Kehadiran</button>
+                                <button type="submit" class="w-full p-3 bg-indigo-900 hover:bg-indigo-850 text-white font-black text-xs uppercase tracking-widest rounded-3xl shadow-xl">Kirim Kehadiran</button>
                             </form>
                         </div>
                     `}
@@ -803,7 +876,7 @@
                         ${['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'].map(colStatus => html`
                             <div key=${colStatus} class="bg-slate-100 p-4 rounded-3xl border flex flex-col min-h-[350px]">
                                 <div class="flex justify-between items-center mb-4">
-                                    <span class="font-black text-xs uppercase tracking-wider text-slate-600">${colStatus}</span>
+                                    <span class="font-black text-xs uppercase tracking-wider text-slate-600">{colStatus}</span>
                                     <span class="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-bold border">${tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).length}</span>
                                 </div>
 
@@ -849,7 +922,6 @@
             const [userToDelete, setUserToDelete] = useState(null);
             const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative', avatar: '' });
 
-            // Pengonversi Berkas Foto Asli Menjadi Base64
             const handleImageUpload = (e, userId) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -857,12 +929,10 @@
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     if (userId) {
-                        // Memperbarui foto profil karyawan yang sudah ada
                         const updatedUsers = users.map(u => {
                             if (u.id === userId) {
                                 const updatedUser = { ...u, avatar: reader.result };
                                 if (userId === user.id) {
-                                    // SINKRONKAN KE CURRENT USER AKTIF
                                     setUser(updatedUser);
                                 }
                                 return updatedUser;
@@ -872,7 +942,6 @@
                         setUsers(updatedUsers);
                         notify("Foto profil berhasil diperbarui!");
                     } else {
-                        // Memperbarui foto pendaftaran karyawan baru
                         setNewUser({ ...newUser, avatar: reader.result });
                         notify("Foto pendaftaran siap digunakan!");
                     }
@@ -890,7 +959,6 @@
                 });
                 setUsers(updatedUsers);
 
-                // SINKRONKAN KE CURRENT USER JIKA DIRI SENDIRI YANG DIEDIT
                 if (editingUser.id === user.id) {
                     setUser(editingUser);
                 }
@@ -916,7 +984,6 @@
                 notify("Anggota tim baru berhasil didaftarkan!");
             };
 
-            // PENGGANTI BROWSER confirm() KHUSUS (CUSTOM DELETION DIALOG OVERLAY)
             const triggerDeleteUser = () => {
                 if (!userToDelete) return;
                 setUsers(users.filter(u => u.id !== userToDelete));
@@ -926,7 +993,6 @@
 
             return html`
                 <div class="space-y-6">
-                    <!-- MAIN CARD PROFIL MANDIRI -->
                     <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto relative overflow-hidden">
                         <div class="relative group cursor-pointer">
                             <img src=${user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"} class="w-24 h-24 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-2" />
@@ -960,7 +1026,6 @@
                         </button>
                     </div>
 
-                    <!-- DIREKTORI HRIS / DAFTAR REKAN KERJA -->
                     <div>
                         <div class="flex justify-between items-center mb-3 px-2">
                             <h3 class="font-black text-slate-400 text-[10px] uppercase tracking-wider">Direktori & Kontak Rekan Kerja</h3>
@@ -1102,7 +1167,6 @@
             const [syncLoading, setSyncLoading] = useState(false);
             const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
 
-            // Format data unduhan laporan CSV dinamis
             const handleExportData = () => {
                 const csvRows = [];
                 csvRows.push("Kategori,ID,Detail Utama,Detail Tambahan,Tanggal/Waktu");
@@ -1123,7 +1187,6 @@
                 notify("Ekspor CSV Laporan Berhasil!");
             };
 
-            // FUNGSI SEND DATA KE GOOGLE SHEET VIA WEB APP URL (PUSH)
             const handlePushToSheet = async () => {
                 if (!gsheetUrl) return notify("Harap masukkan URL Google Apps Script Web App!", "error");
                 setSyncLoading(true);
@@ -1131,7 +1194,7 @@
                     const payload = { users, attendance: att, tasks, announcements: ann };
                     await fetch(gsheetUrl, {
                         method: 'POST',
-                        mode: 'no-cors', // Standard CORS workaround untuk Google Web Apps
+                        mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ action: 'push', payload })
                     });
@@ -1143,7 +1206,6 @@
                 }
             };
 
-            // FUNGSI AMBIL DATA DARI GOOGLE SHEET (PULL)
             const handlePullFromSheet = async () => {
                 if (!gsheetUrl) return notify("Harap masukkan URL Google Apps Script Web App!", "error");
                 setSyncLoading(true);
