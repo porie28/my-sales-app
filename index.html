@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SalesTrack Pro v2.0 | Portal Lapangan Modern</title>
+    <title>SalesTrack Pro v2.0 | Portal Lapangan Ringan</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,19 +29,15 @@
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
-    <!-- React, ReactDOM, & Babel menggunakan Cloudflare CDN yang sangat stabil dan andal -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.12/babel.min.js" crossorigin="anonymous"></script>
+    <!-- Memuat Preact, Hooks, dan HTM melalui UMD Global yang 100% bebas hambatan Sandbox -->
+    <script src="https://unpkg.com/preact@10.19.3/dist/preact.min.js"></script>
+    <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
 
-    <!-- Transpilasi JSX langsung di browser tanpa kompilasi modul yang berisiko error -->
-    <script type="text/babel">
-        /** @jsx React.createElement */
-        /** @jsxFrag React.Fragment */
+    <script>
+        const { useState, useEffect, useRef } = window.preactHooks;
+        const html = window.htm.bind(window.preact.h);
 
-        const { useState, useEffect, useRef } = React;
-
-        // Data Awal Sistem untuk Uji Coba Pertama
         const INITIAL_USERS = [
             { 
                 id: "U001", 
@@ -92,12 +88,13 @@
             }
         ];
 
+        // Membungkus akses penyimpanan dengan pengaman try-catch untuk menangkap larangan sandbox iframe
         const safeGetItem = (key, fallback) => {
             try {
                 const value = localStorage.getItem(key);
                 return value ? JSON.parse(value) : fallback;
             } catch (e) {
-                console.warn("Storage access restricted. Using fallback values.", e);
+                console.warn("Storage access restricted. Utilizing memory buffer.", e);
                 return fallback;
             }
         };
@@ -106,12 +103,11 @@
             try {
                 localStorage.setItem(key, JSON.stringify(value));
             } catch (e) {
-                // Fail silently or handle storage restrictions gracefully
+                // Berjalan diam secara aman di dalam browser yang terisolasi sandboxing
             }
         };
 
         function App() {
-            // State Terlindungi dari Eror Sandbox Storage
             const [users, setUsers] = useState(() => safeGetItem('st_users_v2', INITIAL_USERS));
             const [currentUser, setCurrentUser] = useState(() => safeGetItem('st_curr_v2', null));
             const [attendance, setAttendance] = useState(() => safeGetItem('st_att_v2', []));
@@ -123,7 +119,7 @@
             const [notification, setNotification] = useState(null);
             const [showResetModal, setShowResetModal] = useState(false);
 
-            // Simpan otomatis ke penyimpanan lokal browser HP jika diizinkan
+            // Penyinkronan otomatis data state ke memori penyimpanan lokal HP
             useEffect(() => {
                 safeSetItem('st_users_v2', users);
                 safeSetItem('st_curr_v2', currentUser);
@@ -145,105 +141,102 @@
             };
 
             if (!currentUser) {
-                return (
-                    <AuthPage 
-                        users={users} 
-                        setUsers={setUsers} 
-                        onLogin={(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
-                        notify={showNotification}
-                        onReset={() => setShowResetModal(true)}
+                return html`
+                    <${AuthPage} 
+                        users=${users} 
+                        setUsers=${setUsers} 
+                        onLogin=${(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
+                        notify=${showNotification}
+                        onReset=${() => setShowResetModal(true)}
                     />
-                );
+                `;
             }
 
-            return (
-                <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
+            return html`
+                <div class="min-h-screen flex flex-col md:flex-row bg-slate-50">
                     
-                    {/* Top Toast Banner */}
-                    {notification && (
-                        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
+                    <!-- Top Toast Banner -->
+                    ${notification && html`
+                        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
                             notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
-                        }`}>
-                            <span>{notification.message}</span>
+                        }">
+                            <span>${notification.message}</span>
                         </div>
-                    )}
+                    `}
 
-                    {/* CUSTOM RESET MODAL OVERLAY */}
-                    {showResetModal && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                            <div className="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
-                                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl mx-auto"><i className="fas fa-triangle-exclamation"></i></div>
-                                <h3 className="font-black text-slate-800 text-lg">Hapus Cache Sistem?</h3>
-                                <p className="text-xs text-slate-500 leading-relaxed">Tindakan ini akan mengatur ulang data aplikasi ke pengaturan awal dan menghapus data simulasi di perangkat ini.</p>
-                                <div className="grid grid-cols-2 gap-2 pt-2">
-                                    <button onClick={() => setShowResetModal(false)} className="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
-                                    <button onClick={triggerResetAppCache} className="p-3 bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Hapus Data</button>
+                    <!-- CUSTOM RESET MODAL OVERLAY (Menggantikan confirm browser yang sering crash) -->
+                    ${showResetModal && html`
+                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div class="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
+                                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl mx-auto"><i class="fas fa-triangle-exclamation"></i></div>
+                                <h3 class="font-black text-slate-800 text-lg">Hapus Cache Sistem?</h3>
+                                <p class="text-xs text-slate-500 leading-relaxed">Tindakan ini akan mengatur ulang data aplikasi ke pengaturan awal dan menghapus data simulasi di perangkat ini.</p>
+                                <div class="grid grid-cols-2 gap-2 pt-2">
+                                    <button onClick=${() => setShowResetModal(false)} class="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
+                                    <button onClick=${triggerResetAppCache} class="p-3 bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Hapus Data</button>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    `}
 
-                    {}
-                    <aside className="w-full md:w-64 bg-indigo-950 text-white flex-shrink-0 md:flex flex-col justify-between sticky top-0 md:h-screen z-40 p-4 shadow-xl">
+                    <!-- SIDEBAR NAVIGATION FOR DESKTOP -->
+                    <aside class="w-full md:w-64 bg-indigo-950 text-white flex-shrink-0 md:flex flex-col justify-between sticky top-0 md:h-screen z-40 p-4 shadow-xl">
                         <div>
-                            <div className="flex items-center justify-between md:mb-8 pb-4 border-b border-indigo-900">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold"><i className="fas fa-bolt"></i></div>
-                                    <h1 className="font-black text-sm tracking-tight text-indigo-100 uppercase">SalesTrack Pro</h1>
+                            <div class="flex items-center justify-between md:mb-8 pb-4 border-b border-indigo-900">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold"><i class="fas fa-bolt"></i></div>
+                                    <h1 class="font-black text-sm tracking-tight text-indigo-100 uppercase">SalesTrack Pro</h1>
                                 </div>
-                                <button onClick={() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} className="md:hidden text-rose-400 p-2">
-                                    <i className="fas fa-power-off text-lg"></i>
+                                <button onClick=${() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} class="md:hidden text-rose-400 p-2">
+                                    <i class="fas fa-power-off text-lg"></i>
                                 </button>
                             </div>
 
-                            {/* User Profile Summary (Sidebar) */}
-                            <div className="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
-                                <img src={currentUser.avatar || "https://i.pravatar.cc/150"} className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
-                                <div className="min-w-0 flex-1">
-                                    <p className="font-bold text-xs truncate text-indigo-100">{currentUser.name}</p>
-                                    <p className="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">{currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
+                            <div class="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
+                                <img src=${currentUser.avatar || "https://i.pravatar.cc/150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-bold text-xs truncate text-indigo-100">${currentUser.name}</p>
+                                    <p class="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">${currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
                                 </div>
                             </div>
 
-                            {/* Navigation Links */}
-                            <nav className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0">
-                                <NavBtn icon="fa-house" label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                                <NavBtn icon="fa-camera" label={currentUser.role === 'admin' ? 'Data Absen' : 'Kamera & Absensi'} active={activeTab === 'absensi'} onClick={() => setActiveTab('absensi')} />
-                                <NavBtn icon="fa-list-check" label="Manajemen Tugas" active={activeTab === 'tugas'} onClick={() => setActiveTab('tugas')} />
-                                <NavBtn icon="fa-user-tie" label="Data HRIS" active={activeTab === 'hris'} onClick={() => setActiveTab('hris')} />
+                            <nav class="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible no-scrollbar py-2 md:py-0">
+                                <${NavBtn} icon="fa-house" label="Dashboard" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
+                                <${NavBtn} icon="fa-camera" label=${currentUser.role === 'admin' ? 'Data Absen' : 'Kamera & Absensi'} active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
+                                <${NavBtn} icon="fa-list-check" label="Manajemen Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
+                                <${NavBtn} icon="fa-user-tie" label="Data HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
                             </nav>
                         </div>
 
-                        {/* Logout & Reset Buttons (Desktop) */}
-                        <div className="hidden md:flex flex-col gap-2">
-                            <button onClick={() => setShowResetModal(true)} className="flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white transition-all text-left text-[11px] font-bold">
-                                <i className="fas fa-trash-can"></i>
+                        <div class="hidden md:flex flex-col gap-2">
+                            <button onClick=${() => setShowResetModal(true)} class="flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white transition-all text-left text-[11px] font-bold">
+                                <i class="fas fa-trash-can"></i>
                                 <span>RESET DATA APLIKASI</span>
                             </button>
-                            <button onClick={() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} className="flex items-center gap-3 w-full p-3 text-rose-400 hover:bg-rose-950/20 rounded-xl transition-all font-bold text-xs">
-                                <i className="fas fa-power-off"></i>
+                            <button onClick=${() => { setCurrentUser(null); showNotification('Berhasil keluar sistem.'); }} class="flex items-center gap-3 w-full p-3 text-rose-400 hover:bg-rose-950/20 rounded-xl transition-all font-bold text-xs">
+                                <i class="fas fa-power-off"></i>
                                 <span>KELUAR APLIKASI</span>
                             </button>
                         </div>
                     </aside>
 
-                    {/* MAIN CONTENT VIEWPORT */}
-                    <main className="flex-grow p-4 md:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-8 overflow-y-auto">
-                        {activeTab === 'dashboard' && <Dashboard user={currentUser} att={attendance} tasks={tasks} ann={announcements} setAnn={setAnnouncements} notify={showNotification} />}
-                        {activeTab === 'absensi' && <Absensi user={currentUser} att={attendance} setAtt={setAttendance} notify={showNotification} />}
-                        {activeTab === 'tugas' && <TugasPage user={currentUser} tasks={tasks} setTasks={setTasks} users={users} notify={showNotification} />}
-                        {activeTab === 'hris' && <HRISPage user={currentUser} users={users} />}
+                    <!-- MAIN CONTENT VIEWPORT -->
+                    <main class="flex-grow p-4 md:p-8 max-w-5xl mx-auto w-full pb-24 md:pb-8 overflow-y-auto">
+                        ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} setAnn=${setAnnouncements} notify=${showNotification} />`}
+                        ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${setAttendance} notify=${showNotification} />`}
+                        ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${setTasks} users=${users} notify=${showNotification} />`}
+                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} users=${users} />`}
                     </main>
 
-                    {/* STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES */}
-                    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
-                        <MobileNavBtn icon="fa-house" label="Home" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                        <MobileNavBtn icon="fa-camera" label="Absen" active={activeTab === 'absensi'} onClick={() => setActiveTab('absensi')} />
-                        <MobileNavBtn icon="fa-list-check" label="Tugas" active={activeTab === 'tugas'} onClick={() => setActiveTab('tugas')} />
-                        <MobileNavBtn icon="fa-user-tie" label="HRIS" active={activeTab === 'hris'} onClick={() => setActiveTab('hris')} />
+                    <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
+                    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
+                        <${MobileNavBtn} icon="fa-house" label="Home" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
+                        <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
+                        <${MobileNavBtn} icon="fa-list-check" label="Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
+                        <${MobileNavBtn} icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
                     </nav>
                 </div>
-            );
+            `;
         }
 
         function AuthPage({ users, setUsers, onLogin, notify, onReset }) {
@@ -285,66 +278,66 @@
                 }
             };
 
-            return (
-                <div className="min-h-screen bg-indigo-950 flex flex-col items-center justify-center p-4">
-                    <div className="w-full max-w-sm bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
-                        <div className="text-center mb-6">
-                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-3 shadow-lg"><i className="fas fa-bolt"></i></div>
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{isReg ? 'Daftar Baru' : 'Login Portal'}</h2>
-                            <p className="text-xs text-slate-400 font-bold tracking-widest uppercase mt-1">SalesTrack Pro System</p>
+            return html`
+                <div class="min-h-screen bg-indigo-950 flex flex-col items-center justify-center p-4">
+                    <div class="w-full max-w-sm bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
+                        <div class="text-center mb-6">
+                            <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-bold mx-auto mb-3 shadow-lg"><i class="fas fa-bolt"></i></div>
+                            <h2 class="text-2xl font-black text-slate-800 tracking-tight uppercase">${isReg ? 'Daftar Baru' : 'Login Portal'}</h2>
+                            <p class="text-xs text-slate-400 font-bold tracking-widest uppercase mt-1">SalesTrack Pro System</p>
                         </div>
 
-                        <form onSubmit={handleAction} className="space-y-4">
-                            {isReg && (
-                                <>
-                                    <input placeholder="Nama Lengkap Sesuai KTP" onInput={e => setForm({...form, name: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
-                                    <select onInput={e => setForm({...form, role: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-bold text-indigo-900">
+                        <form onSubmit=${handleAction} class="space-y-4">
+                            ${isReg && html`
+                                <div class="space-y-4">
+                                    <input placeholder="Nama Lengkap Sesuai KTP" onInput=${e => setForm({...form, name: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                    <select onInput=${e => setForm({...form, role: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-bold text-indigo-900">
                                         <option value="staff">💼 Peran: Staff Sales Lapangan</option>
                                         <option value="admin">🛡️ Peran: Administrator / HRD</option>
                                     </select>
-                                    {form.role === 'staff' && (
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <select onInput={e => setForm({...form, pos: e.target.value})} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
+                                    ${form.role === 'staff' && html`
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <select onInput=${e => setForm({...form, pos: e.target.value})} class="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
                                                 <option value="Sales Representative">Sales Rep</option>
                                                 <option value="Senior Sales Executive">Senior Executive</option>
                                                 <option value="Canvasser">Canvasser</option>
                                             </select>
-                                            <select onInput={e => setForm({...form, div: e.target.value})} className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
+                                            <select onInput=${e => setForm({...form, div: e.target.value})} class="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 outline-none text-xs font-semibold">
                                                 <option value="Jakarta">DKI Jakarta</option>
                                                 <option value="Jawa Barat">Jawa Barat</option>
                                                 <option value="Jawa Tengah">Jawa Tengah</option>
                                             </select>
                                         </div>
-                                    )}
-                                    <input placeholder="Nomor WhatsApp/HP" type="tel" onInput={e => setForm({...form, phone: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
-                                </>
-                            )}
-                            <input type="email" placeholder="Email Perusahaan" onInput={e => setForm({...form, email: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                    `}
+                                    <input placeholder="Nomor WhatsApp/HP" type="tel" onInput=${e => setForm({...form, phone: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                </div>
+                            `}
+                            <input type="email" placeholder="Email Perusahaan" onInput=${e => setForm({...form, email: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
                             <div>
-                                <input type={showPass ? "text" : "password"} placeholder="Password" onInput={e => setForm({...form, pass: e.target.value})} className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
-                                <div className="flex items-center gap-2 mt-2 ml-2">
-                                    <input type="checkbox" id="showpass" checked={showPass} onChange={() => setShowPass(!showPass)} className="accent-indigo-600 rounded" />
-                                    <label htmlFor="showpass" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">Lihat Password</label>
+                                <input type=${showPass ? "text" : "password"} placeholder="Password" onInput=${e => setForm({...form, pass: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border border-slate-100 outline-none text-sm font-semibold" required />
+                                <div class="flex items-center gap-2 mt-2 ml-2">
+                                    <input type="checkbox" id="showpass" checked=${showPass} onChange=${() => setShowPass(!showPass)} class="accent-indigo-600 rounded" />
+                                    <label htmlFor="showpass" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer select-none">Lihat Password</label>
                                 </div>
                             </div>
 
-                            <button className="w-full p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all">
-                                {isReg ? 'Kirim Pendaftaran' : 'Masuk Dashboard'}
+                            <button class="w-full p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all">
+                                ${isReg ? 'Kirim Pendaftaran' : 'Masuk Dashboard'}
                             </button>
                         </form>
 
-                        <button onClick={() => setIsReg(!isReg)} className="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline text-center">
-                            {isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
+                        <button onClick=${() => setIsReg(!isReg)} class="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline text-center">
+                            ${isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
                         </button>
                     </div>
 
-                    <div className="fixed bottom-4 text-center">
-                        <button onClick={onReset} className="text-[9px] text-slate-500 hover:text-white uppercase tracking-wider font-bold">
+                    <div class="fixed bottom-4 text-center">
+                        <button onClick=${onReset} class="text-[9px] text-slate-500 hover:text-white uppercase tracking-wider font-bold">
                             Reset Database Aplikasi
                         </button>
                     </div>
                 </div>
-            );
+            `;
         }
 
         function Dashboard({ user, att, tasks, ann, setAnn, notify }) {
@@ -372,84 +365,79 @@
                 notify("Pengumuman dihapus.", "error");
             };
 
-            return (
-                <div className="space-y-6">
-                    {/* Welcome Card banner */}
-                    <div className="bg-indigo-900 p-6 md:p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
-                        <i className="fas fa-rocket absolute -right-6 -bottom-6 text-white/10 text-9xl"></i>
-                        <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Field Operations Portal</p>
-                        <h2 className="text-2xl md:text-3xl font-black tracking-tight">Selamat Datang, {user.name}</h2>
-                        <div className="flex flex-wrap gap-2 mt-4">
-                            <span className="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">{user.role === 'admin' ? '🛡️ Administrator' : '💼 Sales Staff'}</span>
-                            <span className="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">📍 Divisi: {user.div || 'Pusat'}</span>
+            return html`
+                <div class="space-y-6">
+                    <div class="bg-indigo-900 p-6 md:p-8 rounded-[2.5rem] text-white shadow-xl relative overflow-hidden">
+                        <i class="fas fa-rocket absolute -right-6 -bottom-6 text-white/10 text-9xl"></i>
+                        <p class="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Field Operations Portal</p>
+                        <h2 class="text-2xl md:text-3xl font-black tracking-tight">Selamat Datang, ${user.name}</h2>
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">${user.role === 'admin' ? '🛡️ Administrator' : '💼 Sales Staff'}</span>
+                            <span class="text-[9px] bg-white/20 px-3 py-1 rounded-full font-bold uppercase tracking-wider">📍 Divisi: ${user.div || 'Pusat'}</span>
                         </div>
                     </div>
 
-                    {/* Info KPI Widget Card Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
-                            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-lg"><i className="fas fa-list-check"></i></div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
+                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-lg"><i class="fas fa-list-check"></i></div>
                             <div>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tugas Anda</p>
-                                <p className="text-xl font-black text-slate-800">{tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).length}</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Tugas Anda</p>
+                                <p class="text-xl font-black text-slate-800">${tasks.filter(t => user.role === 'admin' ? true : t.assignedTo === user.id).length}</p>
                             </div>
                         </div>
-                        <div className="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
-                            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-lg"><i className="fas fa-calendar-day"></i></div>
+                        <div class="bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4">
+                            <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-lg"><i class="fas fa-calendar-day"></i></div>
                             <div>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Hadir Hari Ini</p>
-                                <p className="text-xl font-black text-slate-800">{att.filter(a => user.role === 'admin' ? true : a.userId === user.id).length}</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Hadir Hari Ini</p>
+                                <p class="text-xl font-black text-slate-800">${att.filter(a => user.role === 'admin' ? true : a.userId === user.id).length}</p>
                             </div>
                         </div>
-                        <div className="col-span-2 md:col-span-1 bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4 justify-center md:justify-start">
-                            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-lg"><i className="fas fa-bullhorn"></i></div>
+                        <div class="col-span-2 md:col-span-1 bg-white p-5 rounded-[2rem] border shadow-sm flex items-center gap-4 justify-center md:justify-start">
+                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center text-lg"><i class="fas fa-bullhorn"></i></div>
                             <div>
-                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pengumuman</p>
-                                <p className="text-xl font-black text-slate-800">{ann.length}</p>
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Pengumuman</p>
+                                <p class="text-xl font-black text-slate-800">${ann.length}</p>
                             </div>
                         </div>
                     </div>
 
-                    {/* Announcement Board Area */}
-                    <div className="bg-white p-6 rounded-[2.5rem] border shadow-sm">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-black text-slate-800 uppercase text-xs tracking-wider">Papan Pengumuman Resmi</h3>
-                            {user.role === 'admin' && (
-                                <button onClick={() => setShowAddAnn(!showAddAnn)} className="text-indigo-600 font-bold text-xs uppercase hover:underline">
-                                    {showAddAnn ? 'Batal' : '+ Pengumuman'}
+                    <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-black text-slate-800 uppercase text-xs tracking-wider">Papan Pengumuman Resmi</h3>
+                            ${user.role === 'admin' && html`
+                                <button onClick=${() => setShowAddAnn(!showAddAnn)} class="text-indigo-600 font-bold text-xs uppercase hover:underline">
+                                    ${showAddAnn ? 'Batal' : '+ Pengumuman'}
                                 </button>
-                            )}
+                            `}
                         </div>
 
-                        {showAddAnn && (
-                            <form onSubmit={handlePostAnn} className="mb-6 space-y-3 bg-slate-50 p-4 rounded-3xl border border-dashed border-indigo-200">
-                                <input placeholder="Judul Pengumuman" value={newAnn.title} onChange={e => setNewAnn({...newAnn, title: e.target.value})} className="w-full p-3 bg-white rounded-xl text-sm font-semibold outline-none border" required />
-                                <textarea placeholder="Tulis isi pengumuman kepada seluruh tim sales..." value={newAnn.content} onChange={e => setNewAnn({...newAnn, content: e.target.value})} className="w-full p-3 bg-white rounded-xl text-sm h-24 outline-none border resize-none" required />
-                                <button type="submit" className="w-full p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Siarkan Pengumuman</button>
+                        ${showAddAnn && html`
+                            <form onSubmit=${handlePostAnn} class="mb-6 space-y-3 bg-slate-50 p-4 rounded-3xl border border-dashed border-indigo-200">
+                                <input placeholder="Judul Pengumuman" value=${newAnn.title} onInput=${e => setNewAnn({...newAnn, title: e.target.value})} class="w-full p-3 bg-white rounded-xl text-sm font-semibold outline-none border" required />
+                                <textarea placeholder="Tulis isi pengumuman kepada seluruh tim sales..." value=${newAnn.content} onInput=${e => setNewAnn({...newAnn, content: e.target.value})} class="w-full p-3 bg-white rounded-xl text-sm h-24 outline-none border resize-none" required />
+                                <button type="submit" class="w-full p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Siarkan Pengumuman</button>
                             </form>
-                        )}
+                        `}
 
-                        <div className="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
-                            {ann.length === 0 ? (
-                                <p className="text-center text-slate-400 text-xs py-6 font-semibold">Belum ada pengumuman hari ini.</p>
-                            ) : (
-                                ann.map(a => (
-                                    <div key={a.id} className="p-4 bg-slate-50 rounded-2xl border relative hover:border-slate-300 transition-all">
-                                        <h4 className="font-bold text-indigo-950 text-sm">{a.title}</h4>
-                                        <p className="text-xs text-slate-500 mt-2 leading-relaxed whitespace-pre-line">{a.content}</p>
-                                        <div className="flex justify-between items-center mt-3 border-t pt-2 text-[9px] font-bold text-slate-400 uppercase">
-                                            <span>Oleh: {a.author} • {a.date}</span>
-                                            {user.role === 'admin' && (
-                                                <button onClick={() => handleDeleteAnn(a.id)} className="text-rose-500 hover:underline">Hapus</button>
-                                            )}
-                                        </div>
+                        <div class="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
+                            ${ann.length === 0 ? html`
+                                <p class="text-center text-slate-400 text-xs py-6 font-semibold">Belum ada pengumuman hari ini.</p>
+                            ` : ann.map(a => html`
+                                <div key=${a.id} class="p-4 bg-slate-50 rounded-2xl border relative hover:border-slate-300 transition-all">
+                                    <h4 class="font-bold text-indigo-950 text-sm">${a.title}</h4>
+                                    <p class="text-xs text-slate-500 mt-2 leading-relaxed whitespace-pre-line">${a.content}</p>
+                                    <div class="flex justify-between items-center mt-3 border-t pt-2 text-[9px] font-bold text-slate-400 uppercase">
+                                        <span>Oleh: ${a.author} • ${a.date}</span>
+                                        ${user.role === 'admin' && html`
+                                            <button onClick=${() => handleDeleteAnn(a.id)} class="text-rose-500 hover:underline">Hapus</button>
+                                        `}
                                     </div>
-                                ))
-                            )}
+                                </div>
+                            `)}
                         </div>
                     </div>
                 </div>
-            );
+            `;
         }
 
         function Absensi({ user, att, setAtt, notify }) {
@@ -467,7 +455,6 @@
             const videoRef = useRef(null);
             const canvasRef = useRef(null);
 
-            // Fetch koordinat GPS otomatis & tangguh
             useEffect(() => {
                 fetchLocation();
             }, []);
@@ -484,7 +471,7 @@
                             setGpsData({
                                 lat: pos.coords.latitude,
                                 lng: pos.coords.longitude,
-                                address: `Akurasi Satelit Terverifikasi (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`
+                                address: `Satelit Terverifikasi (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`
                             });
                             setGpsLoading(false);
                         },
@@ -508,14 +495,13 @@
                 }
             };
 
-            // Reaktifitas Kamera Menghindari Race-condition Render DOM
             useEffect(() => {
                 let stream = null;
                 const enableCamera = async () => {
                     if (camActive && videoRef.current) {
                         try {
                             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                                throw new Error("Akses kamera tidak didukung di jaringan http/tidak aman.");
+                                throw new Error("Akses kamera tidak didukung.");
                             }
                             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
                             videoRef.current.srcObject = stream;
@@ -527,7 +513,7 @@
                             ];
                             setPhoto(fallbackPhotos[Math.floor(Math.random() * fallbackPhotos.length)]);
                             setCamActive(false);
-                            notify(e.message || "Akses kamera gagal. Memakai foto demo otomatis.", "error");
+                            notify("Akses kamera gagal. Memakai foto demo otomatis.", "error");
                         }
                     }
                 };
@@ -576,97 +562,90 @@
                 notify(`Absen ${type} berhasil dikirim ke Admin!`);
             };
 
-            return (
-                <div className="space-y-6">
-                    {user.role === 'admin' ? (
-                        /* ADMIN VIEW: REKAP RIWAYAT TIM */
-                        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border">
-                          <h3 className="text-xl font-bold text-slate-800 mb-2">Riwayat Presensi Tim Sales</h3>
-                          <p className="text-xs text-slate-400 mb-6">Dashboard monitor kehadiran, foto verifikasi, dan GPS sales di lapangan</p>
+            return html`
+                <div class="space-y-6">
+                    ${user.role === 'admin' ? html`
+                        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
+                          <h3 class="text-xl font-bold text-slate-800 mb-2">Riwayat Presensi Tim Sales</h3>
+                          <p class="text-xs text-slate-400 mb-6">Dashboard monitor kehadiran, foto verifikasi, dan GPS sales di lapangan</p>
 
-                          <div className="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar">
-                              {att.length === 0 ? (
-                                  <p className="text-center text-slate-400 py-12 text-sm font-semibold">Belum ada karyawan yang absen hari ini.</p>
-                              ) : (
-                                  att.map(a => (
-                                      <div key={a.id} className="p-4 bg-slate-50 rounded-3xl border flex flex-col md:flex-row gap-4 items-start">
-                                          <img src={a.photo} className="w-24 h-32 rounded-2xl object-cover border shadow-sm flex-shrink-0" />
-                                          <div className="space-y-1 flex-1 min-w-0">
-                                              <div className="flex items-center gap-2">
-                                                  <h4 className="font-black text-sm text-slate-800">{a.userName}</h4>
-                                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${a.type === 'Masuk' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>ABSEN {a.type}</span>
-                                              </div>
-                                              <p className="text-xs font-bold text-indigo-700">⏱ {a.time}</p>
-                                              
-                                              {/* Optional Chaining Safety-Guards to Prevent Fatal Render Crashing */}
-                                              <p className="text-xs text-slate-400 font-bold truncate">
-                                                  📍 GPS: {a.location?.lat ? a.location.lat.toFixed(5) : '0'}, {a.location?.lng ? a.location.lng.toFixed(5) : '0'} ({a.location?.address || 'Lokasi simulasi'})
-                                              </p>
-                                              <div className="p-3 bg-white border rounded-xl text-xs text-slate-600 mt-2 italic whitespace-pre-wrap">
-                                                  &ldquo;{a.notes}&rdquo;
-                                              </div>
+                          <div class="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar">
+                              ${att.length === 0 ? html`
+                                  <p class="text-center text-slate-400 py-12 text-sm font-semibold">Belum ada karyawan yang absen hari ini.</p>
+                              ` : att.map(a => html`
+                                  <div key=${a.id} class="p-4 bg-slate-50 rounded-3xl border flex flex-col md:flex-row gap-4 items-start">
+                                      <img src=${a.photo} class="w-24 h-32 rounded-2xl object-cover border shadow-sm flex-shrink-0" />
+                                      <div class="space-y-1 flex-1 min-w-0">
+                                          <div class="flex items-center gap-2">
+                                              <h4 class="font-black text-sm text-slate-800">${a.userName}</h4>
+                                              <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${a.type === 'Masuk' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">ABSEN ${a.type}</span>
+                                          </div>
+                                          <p class="text-xs font-bold text-indigo-700">⏱ ${a.time}</p>
+                                          <p class="text-xs text-slate-400 font-bold truncate">
+                                              📍 GPS: ${a.location?.lat ? a.location.lat.toFixed(5) : '0'}, ${a.location?.lng ? a.location.lng.toFixed(5) : '0'} (${a.location?.address || 'Lokasi simulasi'})
+                                          </p>
+                                          <div class="p-3 bg-white border rounded-xl text-xs text-slate-600 mt-2 italic whitespace-pre-wrap">
+                                              &ldquo;${a.notes}&rdquo;
                                           </div>
                                       </div>
-                                  ))
-                              )}
+                                  </div>
+                              `)}
                           </div>
                         </div>
-                    ) : (
-                        /* STAFF VIEW: CAMERA PORTAL & GPS FORM */
-                        <div className="bg-white p-6 rounded-[2.5rem] border shadow-sm max-w-xl mx-auto space-y-6">
+                    ` : html`
+                        <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm max-w-xl mx-auto space-y-6">
                             <div>
-                                <h3 className="text-xl font-black text-slate-800">Presensi Kehadiran Sales</h3>
-                                <p className="text-xs text-slate-400 mt-1">Gunakan verifikasi kamera HP asli dan GPS presisi untuk clock-in</p>
+                                <h3 class="text-xl font-black text-slate-800">Presensi Kehadiran Sales</h3>
+                                <p class="text-xs text-slate-400 mt-1">Gunakan verifikasi kamera HP asli dan GPS presisi untuk clock-in</p>
                             </div>
 
-                            <form onSubmit={handleSubmitAbsen} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button type="button" onClick={() => setType('Masuk')} className={`p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Masuk' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>🌅 Masuk</button>
-                                    <button type="button" onClick={() => setType('Keluar')} className={`p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Keluar' ? 'bg-rose-50 border-rose-500 text-rose-800' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>🌇 Pulang</button>
+                            <form onSubmit=${handleSubmitAbsen} class="space-y-4">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button type="button" onClick=${() => setType('Masuk')} class="p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Masuk' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-400'}">🌅 Masuk</button>
+                                    <button type="button" onClick=${() => setType('Keluar')} class="p-3 rounded-2xl font-black text-xs uppercase border transition-all ${type === 'Keluar' ? 'bg-rose-50 border-rose-500 text-rose-800' : 'bg-slate-50 border-slate-100 text-slate-400'}">🌇 Pulang</button>
                                 </div>
 
-                                <div className="bg-slate-100 p-4 rounded-2xl text-xs flex justify-between items-center border">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-bold text-slate-400">Koordinat GPS Anda:</p>
-                                        <p className="font-bold text-indigo-900 mt-0.5 truncate">{gpsLoading ? "Sedang melacak satelit..." : gpsData?.address}</p>
+                                <div class="bg-slate-100 p-4 rounded-2xl text-xs flex justify-between items-center border">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-bold text-slate-400">Koordinat GPS Anda:</p>
+                                        <p class="font-bold text-indigo-900 mt-0.5 truncate">${gpsLoading ? "Sedang melacak satelit..." : gpsData?.address}</p>
                                     </div>
-                                    <button type="button" onClick={fetchLocation} className="p-2 bg-white rounded-lg border text-indigo-600"><i className="fas fa-arrows-rotate"></i></button>
+                                    <button type="button" onClick=${fetchLocation} class="p-2 bg-white rounded-lg border text-indigo-600 ml-2"><i class="fas fa-arrows-rotate"></i></button>
                                 </div>
 
-                                {/* Kamera Viewport */}
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider">Bukti Foto Selfie (Wajib)</label>
-                                    <div className="aspect-video bg-slate-900 rounded-[2rem] overflow-hidden relative flex items-center justify-center border-4 border-slate-100 shadow-lg">
-                                        {camActive && <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />}
-                                        {photo && <img src={photo} className="w-full h-full object-cover" />}
-                                        {!camActive && !photo && (
-                                            <div className="text-center text-slate-500 p-4">
-                                                <i className="fas fa-camera text-4xl mb-2 text-slate-700"></i>
-                                                <p className="text-[10px] font-bold uppercase tracking-wider">Kamera Belum Aktif</p>
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-wider">Bukti Foto Selfie (Wajib)</label>
+                                    <div class="aspect-video bg-slate-900 rounded-[2rem] overflow-hidden relative flex items-center justify-center border-4 border-slate-100 shadow-lg">
+                                        ${camActive && html`<video ref=${videoRef} autoPlay playsInline class="w-full h-full object-cover" />`}
+                                        ${photo && html`<img src=${photo} class="w-full h-full object-cover" />`}
+                                        ${!camActive && !photo && html`
+                                            <div class="text-center text-slate-500 p-4">
+                                                <i class="fas fa-camera class text-4xl mb-2 text-slate-700"></i>
+                                                <p class="text-[10px] font-bold uppercase tracking-wider">Kamera Belum Aktif</p>
                                             </div>
-                                        )}
-                                        <div className="absolute bottom-4 flex gap-2 justify-center w-full">
-                                            {!camActive ? (
-                                                <button type="button" onClick={() => setCamActive(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg">Aktifkan Kamera</button>
-                                            ) : (
-                                                <button type="button" onClick={takeSelfie} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg">Ambil Foto</button>
-                                            )}
+                                        `}
+                                        <div class="absolute bottom-4 flex gap-2 justify-center w-full">
+                                            ${!camActive ? html`
+                                                <button type="button" onClick=${() => setCamActive(true)} class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg">Aktifkan Kamera</button>
+                                            ` : html`
+                                                <button type="button" onClick=${takeSelfie} class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg">Ambil Foto</button>
+                                            `}
                                         </div>
                                     </div>
-                                    <canvas ref={canvasRef} className="hidden" />
+                                    <canvas ref=${canvasRef} class="hidden" />
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Aktivitas/Keterangan Hari Ini <span className="text-rose-500">*</span></label>
-                                    <textarea placeholder="Tulis aktivitas penugasan lapangan yang wajib Anda lakukan saat ini..." value={notes} onChange={e => setNotes(e.target.value)} className="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm border outline-none font-semibold focus:border-indigo-500 transition-all" required />
+                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Aktivitas/Keterangan Hari Ini <span class="text-rose-500">*</span></label>
+                                    <textarea placeholder="Tulis aktivitas penugasan harian yang harus dilaporkan..." value=${notes} onInput=${e => setNotes(e.target.value)} class="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm border outline-none font-semibold focus:border-indigo-500 transition-all" required />
                                 </div>
 
-                                <button type="submit" className="w-full p-4 bg-indigo-900 hover:bg-indigo-850 text-white font-black text-xs uppercase tracking-widest rounded-3xl shadow-xl">Kirim Kehadiran</button>
+                                <button type="submit" class="w-full p-4 bg-indigo-900 hover:bg-indigo-850 text-white font-black text-xs uppercase tracking-widest rounded-3xl shadow-xl">Kirim Kehadiran</button>
                             </form>
                         </div>
-                    )}
+                    `}
                 </div>
-            );
+            `;
         }
 
         function TugasPage({ user, tasks, setTasks, users, notify }) {
@@ -715,36 +694,36 @@
                 notify("Tugas telah dihapus dari sistem.", "error");
             };
 
-            return (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
+            return html`
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center">
                         <div>
-                            <h3 className="text-xl font-black text-slate-800">Manajemen Tugas Lapangan</h3>
-                            <p className="text-xs text-slate-400">Papan pemantauan alur kerja kunjungan sales</p>
+                            <h3 class="text-xl font-black text-slate-800">Manajemen Tugas Lapangan</h3>
+                            <p class="text-xs text-slate-400">Papan pemantauan alur kerja kunjungan sales</p>
                         </div>
-                        {user.role === 'admin' && (
-                            <button onClick={() => setShowAddForm(!showAddForm)} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">
-                                {showAddForm ? 'Batal' : '+ Tugas Baru'}
+                        ${user.role === 'admin' && html`
+                            <button onClick=${() => setShowAddForm(!showAddForm)} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">
+                                ${showAddForm ? 'Batal' : '+ Tugas Baru'}
                             </button>
-                        )}
+                        `}
                     </div>
 
-                    {showAddForm && (
-                        <form onSubmit={handleCreateTask} className="p-5 bg-white rounded-3xl border shadow-sm space-y-4 max-w-lg">
-                            <h4 className="font-black text-xs uppercase tracking-wider text-slate-400">Buat Delegasi Baru</h4>
-                            <input placeholder="Nama Tugas / Lokasi Kunjungan" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-xs font-semibold outline-none" required />
-                            <textarea placeholder="Detail instruksi kerja yang harus diselesaikan..." value={form.desc} onChange={e => setForm({...form, desc: e.target.value})} className="w-full p-3 bg-slate-50 border rounded-xl text-xs font-semibold outline-none h-20 resize-none" required />
+                    ${showAddForm && html`
+                        <form onSubmit=${handleCreateTask} class="p-5 bg-white rounded-3xl border shadow-sm space-y-4 max-w-lg">
+                            <h4 class="font-black text-xs uppercase tracking-wider text-slate-400">Buat Delegasi Baru</h4>
+                            <input placeholder="Nama Tugas / Lokasi Kunjungan" value=${form.title} onInput=${e => setForm({...form, title: e.target.value})} class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-semibold outline-none" required />
+                            <textarea placeholder="Detail instruksi kerja yang harus diselesaikan..." value=${form.desc} onInput=${e => setForm({...form, desc: e.target.value})} class="w-full p-3 bg-slate-50 border rounded-xl text-xs font-semibold outline-none h-20 resize-none" required />
                             
-                            <div className="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tugaskan Ke</label>
-                                    <select value={form.assignee} onChange={e => setForm({...form, assignee: e.target.value})} className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
-                                        {users.filter(u => u.role === 'staff').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tugaskan Ke</label>
+                                    <select value=${form.assignee} onInput=${e => setForm({...form, assignee: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
+                                        ${users.filter(u => u.role === 'staff').map(u => html`<option key=${u.id} value=${u.id}>${u.name}</option>`)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Prioritas</label>
-                                    <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
+                                    <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Prioritas</label>
+                                    <select value=${form.priority} onInput=${e => setForm({...form, priority: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
                                         <option value="Tinggi">🔴 Tinggi</option>
                                         <option value="Sedang">🟡 Sedang</option>
                                         <option value="Rendah">🟢 Rendah</option>
@@ -752,127 +731,123 @@
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Batas Waktu (Deadline)</label>
-                                <input type="date" value={form.deadline} onChange={e => setForm({...form, deadline: e.target.value})} className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-semibold outline-none" required />
+                                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Batas Waktu (Deadline)</label>
+                                <input type="date" value=${form.deadline} onInput=${e => setForm({...form, deadline: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-semibold outline-none" required />
                             </div>
-                            <button type="submit" className="w-full p-3 bg-indigo-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg">Kirim Delegasi</button>
+                            <button type="submit" class="w-full p-3 bg-indigo-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg">Kirim Delegasi</button>
                         </form>
-                    )}
+                    `}
 
-                    {/* KANBAN BOARD SYSTEM */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'].map(colStatus => (
-                            <div key={colStatus} className="bg-slate-100 p-4 rounded-3xl border flex flex-col min-h-[350px]">
-                                <div className="flex justify-between items-center mb-4">
-                                    <span className="font-black text-xs uppercase tracking-wider text-slate-600">{colStatus}</span>
-                                    <span className="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-bold border">{tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).length}</span>
+                    <!-- KANBAN BOARD SYSTEM -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        ${['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'].map(colStatus => html`
+                            <div key=${colStatus} class="bg-slate-100 p-4 rounded-3xl border flex flex-col min-h-[350px]">
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="font-black text-xs uppercase tracking-wider text-slate-600">${colStatus}</span>
+                                    <span class="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-bold border">${tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).length}</span>
                                 </div>
 
-                                <div className="space-y-3 flex-grow overflow-y-auto no-scrollbar">
-                                    {tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).map(task => (
-                                        <div key={task.id} className="bg-white p-4 rounded-2xl border shadow-sm space-y-3 hover:border-slate-300 transition-all">
-                                            <div className="flex justify-between items-start">
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full ${task.priority === 'Tinggi' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>{task.priority}</span>
-                                                {user.role === 'admin' && (
-                                                    <button onClick={() => handleDeleteTask(task.id)} className="text-slate-400 hover:text-rose-600"><i className="fas fa-trash-can text-xs"></i></button>
-                                                )}
+                                <div class="space-y-3 flex-grow overflow-y-auto no-scrollbar">
+                                    ${tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).map(task => html`
+                                        <div key=${task.id} class="bg-white p-4 rounded-2xl border shadow-sm space-y-3 hover:border-slate-300 transition-all">
+                                            <div class="flex justify-between items-start">
+                                                <span class="text-[8px] font-black px-2 py-0.5 rounded-full ${task.priority === 'Tinggi' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">${task.priority}</span>
+                                                ${user.role === 'admin' && html`
+                                                    <button onClick=${() => handleDeleteTask(task.id)} class="text-slate-400 hover:text-rose-600"><i class="fas fa-trash-can text-xs"></i></button>
+                                                `}
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-slate-800 text-xs">{task.title}</h4>
-                                                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{task.description}</p>
+                                                <h4 class="font-bold text-slate-800 text-xs">${task.title}</h4>
+                                                <p class="text-[10px] text-slate-400 mt-1 leading-relaxed">${task.description}</p>
                                             </div>
-                                            <div className="border-t pt-2 text-[9px] font-bold text-slate-400 uppercase space-y-1">
-                                                <p>👤 PIC: <span className="text-indigo-900">{task.assignedName}</span></p>
-                                                <p>⏱ Batas: {task.deadline}</p>
+                                            <div class="border-t pt-2 text-[9px] font-bold text-slate-400 uppercase space-y-1">
+                                                <p>👤 PIC: <span class="text-indigo-900">${task.assignedName}</span></p>
+                                                <p>⏱ Batas: ${task.deadline}</p>
                                             </div>
 
-                                            {/* Status Shifter Button Controls */}
-                                            <div className="flex gap-1 pt-1">
-                                                {colStatus !== 'Belum Mulai' && (
-                                                    <button onClick={() => handleStatusChange(task.id, -1)} className="flex-1 p-1 bg-slate-100 text-[9px] font-bold uppercase rounded-lg hover:bg-slate-200">Mundur</button>
-                                                )}
-                                                {colStatus !== 'Selesai' && (
-                                                    <button onClick={() => handleStatusChange(task.id, 1)} className="flex-1 p-1 bg-indigo-900 text-white text-[9px] font-bold uppercase rounded-lg hover:bg-indigo-850">Lanjut</button>
-                                                )}
+                                            <div class="flex gap-1 pt-1">
+                                                ${colStatus !== 'Belum Mulai' && html`
+                                                    <button onClick=${() => handleStatusChange(task.id, -1)} class="flex-1 p-1 bg-slate-100 text-[9px] font-bold uppercase rounded-lg hover:bg-slate-200">Mundur</button>
+                                                `}
+                                                ${colStatus !== 'Selesai' && html`
+                                                    <button onClick=${() => handleStatusChange(task.id, 1)} class="flex-1 p-1 bg-indigo-900 text-white text-[9px] font-bold uppercase rounded-lg hover:bg-indigo-850">Lanjut</button>
+                                                `}
                                             </div>
                                         </div>
-                                    ))}
+                                    `)}
                                 </div>
                             </div>
-                        ))}
+                        `)}
                     </div>
                 </div>
-            );
+            `;
         }
 
         function HRISPage({ user, users }) {
-            return (
-                <div className="space-y-6">
-                    {/* Logged in employee profile details */}
-                    <div className="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto">
-                        <img src={user.avatar || "https://i.pravatar.cc/150"} className="w-20 h-20 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-4" />
-                        <h3 className="font-black text-xl text-slate-800">{user.name}</h3>
-                        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">{user.pos} • {user.div}</p>
+            return html`
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto">
+                        <img src=${user.avatar || "https://i.pravatar.cc/150"} class="w-20 h-20 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-4" />
+                        <h3 class="font-black text-xl text-slate-800">${user.name}</h3>
+                        <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">${user.pos} • ${user.div}</p>
                         
-                        <div className="w-full text-left border-t mt-6 pt-4 space-y-3 text-xs font-semibold text-slate-600">
-                            <div className="flex justify-between border-b pb-2">
-                                <span className="text-slate-400">ID KARYAWAN</span>
-                                <span className="text-slate-800">{user.id}</span>
+                        <div class="w-full text-left border-t mt-6 pt-4 space-y-3 text-xs font-semibold text-slate-600">
+                            <div class="flex justify-between border-b pb-2">
+                                <span class="text-slate-400">ID KARYAWAN</span>
+                                <span class="text-slate-800">${user.id}</span>
                             </div>
-                            <div className="flex justify-between border-b pb-2">
-                                <span className="text-slate-400">EMAIL PERUSAHAAN</span>
-                                <span className="text-slate-800">{user.email}</span>
+                            <div class="flex justify-between border-b pb-2">
+                                <span class="text-slate-400">EMAIL PERUSAHAAN</span>
+                                <span class="text-slate-800">${user.email}</span>
                             </div>
-                            <div className="flex justify-between border-b pb-2">
-                                <span className="text-slate-400">NOMOR WA</span>
-                                <span className="text-slate-800">{user.phone}</span>
+                            <div class="flex justify-between border-b pb-2">
+                                <span class="text-slate-400">NOMOR WA</span>
+                                <span class="text-slate-800">${user.phone}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* All Registered Colleagues list */}
                     <div>
-                        <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-wider mb-3 px-2">Direktori Kontak Rekan Kerja</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {users.map(u => (
-                                <div key={u.id} className="bg-white p-4 rounded-3xl border flex items-center gap-3">
-                                    <img src={u.avatar || "https://i.pravatar.cc/150"} className="w-10 h-10 rounded-full object-cover border" />
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-slate-800 text-xs truncate">{u.name}</h4>
-                                        <p className="text-[10px] text-slate-400 truncate">{u.pos} • {u.div}</p>
+                        <h3 class="font-black text-slate-400 text-[10px] uppercase tracking-wider mb-3 px-2">Direktori Kontak Rekan Kerja</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            ${users.map(u => html`
+                                <div key=${u.id} class="bg-white p-4 rounded-3xl border flex items-center gap-3">
+                                    <img src=${u.avatar || "https://i.pravatar.cc/150"} class="w-10 h-10 rounded-full object-cover border" />
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-bold text-slate-800 text-xs truncate">${u.name}</h4>
+                                        <p class="text-[10px] text-slate-400 truncate">${u.pos} • ${u.div}</p>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <a href={`tel:${u.phone || ''}`} className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border hover:bg-emerald-100 transition-all"><i className="fas fa-phone text-xs"></i></a>
-                                        <a href={`https://wa.me/62${(u.phone || '').startsWith('0') ? (u.phone || '').substring(1) : (u.phone || '')}`} target="_blank" className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center border hover:bg-indigo-100 transition-all"><i className="fab fa-whatsapp text-xs"></i></a>
+                                    <div class="flex gap-1">
+                                        <a href="tel:${u.phone || ''}" class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border hover:bg-emerald-100 transition-all"><i class="fas fa-phone text-xs"></i></a>
+                                        <a href="https://wa.me/62${(u.phone || '').startsWith('0') ? (u.phone || '').substring(1) : (u.phone || '')}" target="_blank" class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center border hover:bg-indigo-100 transition-all"><i class="fab fa-whatsapp text-xs"></i></a>
                                     </div>
                                 </div>
-                            ))}
+                            `)}
                         </div>
                     </div>
                 </div>
-            );
+            `;
         }
 
         function NavBtn({ icon, label, active, onClick }) {
-            return (
-                <button onClick={onClick} className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all font-bold text-xs ${active ? 'bg-indigo-900 text-indigo-200' : 'text-indigo-400 hover:bg-indigo-900/30'}`}>
-                    <i className={`fas ${icon} text-sm`}></i>
-                    <span>{label}</span>
+            return html`
+                <button onClick=${onClick} class="flex items-center gap-3 w-full p-3 rounded-xl transition-all font-bold text-xs ${active ? 'bg-indigo-900 text-indigo-200' : 'text-indigo-400 hover:bg-indigo-900/30'}">
+                    <i class="fas ${icon} text-sm"></i>
+                    <span>${label}</span>
                 </button>
-            );
+            `;
         }
 
         function MobileNavBtn({ icon, label, active, onClick }) {
-            return (
-                <button onClick={onClick} className={`flex flex-col items-center justify-center p-2 rounded-xl flex-1 transition-all ${active ? 'text-indigo-600' : 'text-slate-400'}`}>
-                    <i className={`fas ${icon} text-base`}></i>
-                    <span className="text-[9px] font-black uppercase mt-1 tracking-tighter">{label}</span>
+            return html`
+                <button onClick=${onClick} class="flex flex-col items-center justify-center p-2 rounded-xl flex-1 transition-all ${active ? 'text-indigo-600' : 'text-slate-400'}">
+                    <i class="fas ${icon} text-base"></i>
+                    <span class="text-[9px] font-black uppercase mt-1 tracking-tighter">${label}</span>
                 </button>
-            );
+            `;
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        preact.render(html`<${App} />`, document.getElementById('root'));
     </script>
 </body>
 </html>
