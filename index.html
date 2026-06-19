@@ -92,38 +92,56 @@
             }
         ];
 
+        const safeGetItem = (key, fallback) => {
+            try {
+                const value = localStorage.getItem(key);
+                return value ? JSON.parse(value) : fallback;
+            } catch (e) {
+                console.warn("Storage access restricted. Using fallback values.", e);
+                return fallback;
+            }
+        };
+
+        const safeSetItem = (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                // Fail silently or handle storage restrictions gracefully
+            }
+        };
+
         function App() {
-            // Utama States (Terintegrasi LocalStorage HP agar data tidak hilang)
-            const [users, setUsers] = useState(() => JSON.parse(localStorage.getItem('st_users_v2')) || INITIAL_USERS);
-            const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('st_curr_v2')) || null);
-            const [attendance, setAttendance] = useState(() => JSON.parse(localStorage.getItem('st_att_v2')) || []);
-            const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('st_tasks_v2')) || INITIAL_TASKS);
-            const [announcements, setAnnouncements] = useState(() => JSON.parse(localStorage.getItem('st_ann_v2')) || INITIAL_ANNOUNCEMENTS);
+            // State Terlindungi dari Eror Sandbox Storage
+            const [users, setUsers] = useState(() => safeGetItem('st_users_v2', INITIAL_USERS));
+            const [currentUser, setCurrentUser] = useState(() => safeGetItem('st_curr_v2', null));
+            const [attendance, setAttendance] = useState(() => safeGetItem('st_att_v2', []));
+            const [tasks, setTasks] = useState(() => safeGetItem('st_tasks_v2', INITIAL_TASKS));
+            const [announcements, setAnnouncements] = useState(() => safeGetItem('st_ann_v2', INITIAL_ANNOUNCEMENTS));
 
             // UI States
             const [activeTab, setActiveTab] = useState('dashboard');
             const [notification, setNotification] = useState(null);
+            const [showResetModal, setShowResetModal] = useState(false);
 
-            // Simpan otomatis ke penyimpanan memori lokal browser HP
+            // Simpan otomatis ke penyimpanan lokal browser HP jika diizinkan
             useEffect(() => {
-                localStorage.setItem('st_users_v2', JSON.stringify(users));
-                localStorage.setItem('st_curr_v2', JSON.stringify(currentUser));
-                localStorage.setItem('st_att_v2', JSON.stringify(attendance));
-                localStorage.setItem('st_tasks_v2', JSON.stringify(tasks));
-                localStorage.setItem('st_ann_v2', JSON.stringify(announcements));
+                safeSetItem('st_users_v2', users);
+                safeSetItem('st_curr_v2', currentUser);
+                safeSetItem('st_att_v2', attendance);
+                safeSetItem('st_tasks_v2', tasks);
+                safeSetItem('st_ann_v2', announcements);
             }, [users, currentUser, attendance, tasks, announcements]);
 
-            // Helper notifikasi kustom tanpa alert browser
             const showNotification = (message, type = 'success') => {
                 setNotification({ message, type });
                 setTimeout(() => setNotification(null), 4000);
             };
 
-            const resetAppCache = () => {
-                if (confirm("Apakah Anda yakin ingin mengatur ulang data aplikasi ke pengaturan awal? Tindakan ini akan menghapus seluruh data kustom di HP ini.")) {
+            const triggerResetAppCache = () => {
+                try {
                     localStorage.clear();
-                    window.location.reload();
-                }
+                } catch(e) {}
+                window.location.reload();
             };
 
             if (!currentUser) {
@@ -133,7 +151,7 @@
                         setUsers={setUsers} 
                         onLogin={(u) => { setCurrentUser(u); showNotification(`Selamat datang, ${u.name}!`); }} 
                         notify={showNotification}
-                        onReset={resetAppCache}
+                        onReset={() => setShowResetModal(true)}
                     />
                 );
             }
@@ -150,7 +168,22 @@
                         </div>
                     )}
 
-                    {/* HEADER MOBILE & NAVIGATION SIDEBAR DESKTOP */}
+                    {/* CUSTOM RESET MODAL OVERLAY */}
+                    {showResetModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div className="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
+                                <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl mx-auto"><i className="fas fa-triangle-exclamation"></i></div>
+                                <h3 className="font-black text-slate-800 text-lg">Hapus Cache Sistem?</h3>
+                                <p className="text-xs text-slate-500 leading-relaxed">Tindakan ini akan mengatur ulang data aplikasi ke pengaturan awal dan menghapus data simulasi di perangkat ini.</p>
+                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                    <button onClick={() => setShowResetModal(false)} className="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
+                                    <button onClick={triggerResetAppCache} className="p-3 bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Hapus Data</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {}
                     <aside className="w-full md:w-64 bg-indigo-950 text-white flex-shrink-0 md:flex flex-col justify-between sticky top-0 md:h-screen z-40 p-4 shadow-xl">
                         <div>
                             <div className="flex items-center justify-between md:mb-8 pb-4 border-b border-indigo-900">
@@ -183,7 +216,7 @@
 
                         {/* Logout & Reset Buttons (Desktop) */}
                         <div className="hidden md:flex flex-col gap-2">
-                            <button onClick={resetAppCache} className="flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white transition-all text-left text-[11px] font-bold">
+                            <button onClick={() => setShowResetModal(true)} className="flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white transition-all text-left text-[11px] font-bold">
                                 <i className="fas fa-trash-can"></i>
                                 <span>RESET DATA APLIKASI</span>
                             </button>
@@ -305,9 +338,8 @@
                         </button>
                     </div>
 
-                    {/* Bottom Action Trigger for Cache Clean */}
                     <div className="fixed bottom-4 text-center">
-                        <button onClick={notify ? () => { localStorage.clear(); location.reload(); } : null} className="text-[9px] text-slate-500 hover:text-white uppercase tracking-wider font-bold">
+                        <button onClick={onReset} className="text-[9px] text-slate-500 hover:text-white uppercase tracking-wider font-bold">
                             Reset Database Aplikasi
                         </button>
                     </div>
@@ -565,8 +597,10 @@
                                                   <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${a.type === 'Masuk' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>ABSEN {a.type}</span>
                                               </div>
                                               <p className="text-xs font-bold text-indigo-700">⏱ {a.time}</p>
+                                              
+                                              {/* Optional Chaining Safety-Guards to Prevent Fatal Render Crashing */}
                                               <p className="text-xs text-slate-400 font-bold truncate">
-                                                  📍 GPS: {a.location?.lat ? a.location.lat.toFixed(5) : '0'}, {a.location?.lng ? a.location.lng.toFixed(5) : '0'} ({a.location?.address})
+                                                  📍 GPS: {a.location?.lat ? a.location.lat.toFixed(5) : '0'}, {a.location?.lng ? a.location.lng.toFixed(5) : '0'} ({a.location?.address || 'Lokasi simulasi'})
                                               </p>
                                               <div className="p-3 bg-white border rounded-xl text-xs text-slate-600 mt-2 italic whitespace-pre-wrap">
                                                   &ldquo;{a.notes}&rdquo;
@@ -596,7 +630,7 @@
                                         <p className="font-bold text-slate-400">Koordinat GPS Anda:</p>
                                         <p className="font-bold text-indigo-900 mt-0.5 truncate">{gpsLoading ? "Sedang melacak satelit..." : gpsData?.address}</p>
                                     </div>
-                                    <button type="button" onClick={fetchLocation} className="p-2 bg-white rounded-lg border text-indigo-600 ml-2"><i className="fas fa-arrows-rotate"></i></button>
+                                    <button type="button" onClick={fetchLocation} className="p-2 bg-white rounded-lg border text-indigo-600"><i className="fas fa-arrows-rotate"></i></button>
                                 </div>
 
                                 {/* Kamera Viewport */}
