@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SalesTrack Pro v2.1 | Portal Lapangan Ringan</title>
+    <title>SalesTrack Pro v2.2 | Portal Lapangan Premium</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,7 +29,7 @@
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
-    <!-- Memuat Preact, Hooks, dan HTM melalui UMD Global yang 100% bebas hambatan Sandbox -->
+    <!-- Memuat Preact, Hooks, dan HTM melalui UMD Global -->
     <script src="https://unpkg.com/preact@10.19.3/dist/preact.min.js"></script>
     <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
     <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
@@ -110,11 +110,12 @@
         };
 
         function App() {
-            const [users, setUsers] = useState(() => safeGetItem('st_users_v2.1', INITIAL_USERS));
-            const [currentUser, setCurrentUser] = useState(() => safeGetItem('st_curr_v2.1', null));
-            const [attendance, setAttendance] = useState(() => safeGetItem('st_att_v2.1', []));
-            const [tasks, setTasks] = useState(() => safeGetItem('st_tasks_v2.1', INITIAL_TASKS));
-            const [announcements, setAnnouncements] = useState(() => safeGetItem('st_ann_v2.1', INITIAL_ANNOUNCEMENTS));
+            const [users, setUsers] = useState(() => safeGetItem('st_users_v2.2', INITIAL_USERS));
+            const [currentUser, setCurrentUser] = useState(() => safeGetItem('st_curr_v2.2', null));
+            const [attendance, setAttendance] = useState(() => safeGetItem('st_att_v2.2', []));
+            const [tasks, setTasks] = useState(() => safeGetItem('st_tasks_v2.2', INITIAL_TASKS));
+            const [announcements, setAnnouncements] = useState(() => safeGetItem('st_ann_v2.2', INITIAL_ANNOUNCEMENTS));
+            const [gsheetUrl, setGsheetUrl] = useState(() => safeGetItem('st_gsheet_url_v2.2', ''));
 
             // UI States
             const [activeTab, setActiveTab] = useState('dashboard');
@@ -123,12 +124,13 @@
 
             // Penyinkronan otomatis data state ke memori penyimpanan lokal HP
             useEffect(() => {
-                safeSetItem('st_users_v2.1', users);
-                safeSetItem('st_curr_v2.1', currentUser);
-                safeSetItem('st_att_v2.1', attendance);
-                safeSetItem('st_tasks_v2.1', tasks);
-                safeSetItem('st_ann_v2.1', announcements);
-            }, [users, currentUser, attendance, tasks, announcements]);
+                safeSetItem('st_users_v2.2', users);
+                safeSetItem('st_curr_v2.2', currentUser);
+                safeSetItem('st_att_v2.2', attendance);
+                safeSetItem('st_tasks_v2.2', tasks);
+                safeSetItem('st_ann_v2.2', announcements);
+                safeSetItem('st_gsheet_url_v2.2', gsheetUrl);
+            }, [users, currentUser, attendance, tasks, announcements, gsheetUrl]);
 
             const showNotification = (message, type = 'success') => {
                 setNotification({ message, type });
@@ -195,7 +197,7 @@
                             </div>
 
                             <div class="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
-                                <img src=${currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
+                                <img src=${currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
                                 <div class="min-w-0 flex-1">
                                     <p class="font-bold text-xs truncate text-indigo-100">${currentUser.name}</p>
                                     <p class="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">${currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
@@ -230,8 +232,23 @@
                         ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} setAnn=${setAnnouncements} notify=${showNotification} />`}
                         ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${setAttendance} notify=${showNotification} />`}
                         ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${setTasks} users=${users} notify=${showNotification} />`}
-                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} users=${users} setUsers=${setUsers} notify=${showNotification} />`}
-                        ${activeTab === 'database' && currentUser.role === 'admin' && html`<${DatabasePage} user=${currentUser} users=${users} att=${attendance} tasks=${tasks} ann=${announcements} notify=${showNotification} />`}
+                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} setUser=${setCurrentUser} users=${users} setUsers=${setUsers} notify=${showNotification} />`}
+                        ${activeTab === 'database' && currentUser.role === 'admin' && html`
+                            <${DatabasePage} 
+                                user=${currentUser} 
+                                users=${users} 
+                                setUsers=${setUsers}
+                                att=${attendance} 
+                                setAtt=${setAttendance}
+                                tasks=${tasks} 
+                                setTasks=${setTasks}
+                                ann=${announcements} 
+                                setAnn=${setAnnouncements}
+                                gsheetUrl=${gsheetUrl}
+                                setGsheetUrl=${setGsheetUrl}
+                                notify=${showNotification} 
+                            />
+                        `}
                     </main>
 
                     <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
@@ -826,9 +843,10 @@
             `;
         }
 
-        function HRISPage({ user, users, setUsers, notify }) {
+        function HRISPage({ user, setUser, users, setUsers, notify }) {
             const [editingUser, setEditingUser] = useState(null);
             const [showAddModal, setShowAddModal] = useState(false);
+            const [userToDelete, setUserToDelete] = useState(null);
             const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative', avatar: '' });
 
             // Pengonversi Berkas Foto Asli Menjadi Base64
@@ -842,7 +860,12 @@
                         // Memperbarui foto profil karyawan yang sudah ada
                         const updatedUsers = users.map(u => {
                             if (u.id === userId) {
-                                return { ...u, avatar: reader.result };
+                                const updatedUser = { ...u, avatar: reader.result };
+                                if (userId === user.id) {
+                                    // SINKRONKAN KE CURRENT USER AKTIF
+                                    setUser(updatedUser);
+                                }
+                                return updatedUser;
                             }
                             return u;
                         });
@@ -866,6 +889,12 @@
                     return u;
                 });
                 setUsers(updatedUsers);
+
+                // SINKRONKAN KE CURRENT USER JIKA DIRI SENDIRI YANG DIEDIT
+                if (editingUser.id === user.id) {
+                    setUser(editingUser);
+                }
+
                 setEditingUser(null);
                 notify("Data profil berhasil diperbarui!");
             };
@@ -887,14 +916,12 @@
                 notify("Anggota tim baru berhasil didaftarkan!");
             };
 
-            const handleDeleteUser = (userId) => {
-                if (userId === user.id) {
-                    return notify("Anda tidak dapat menghapus akun Anda sendiri!", "error");
-                }
-                if (confirm("Apakah Anda yakin ingin menghapus anggota tim ini secara permanen dari HRIS?")) {
-                    setUsers(users.filter(u => u.id !== userId));
-                    notify("Anggota berhasil dihapus.", "error");
-                }
+            // PENGGANTI BROWSER confirm() KHUSUS (CUSTOM DELETION DIALOG OVERLAY)
+            const triggerDeleteUser = () => {
+                if (!userToDelete) return;
+                setUsers(users.filter(u => u.id !== userToDelete));
+                notify("Anggota berhasil dihapus dari sistem.", "error");
+                setUserToDelete(null);
             };
 
             return html`
@@ -967,13 +994,34 @@
                                         <a href="https://wa.me/62${(u.phone || '').startsWith('0') ? (u.phone || '').substring(1) : (u.phone || '')}" target="_blank" class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center border hover:bg-indigo-100 transition-all"><i class="fab fa-whatsapp text-xs"></i></a>
                                         ${user.role === 'admin' && html`
                                             <button onClick=${() => setEditingUser(u)} class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full border flex items-center justify-center hover:bg-indigo-100" title="Edit Data Karyawan"><i class="fas fa-pen text-xs"></i></button>
-                                            <button onClick=${() => handleDeleteUser(u.id)} class="w-8 h-8 bg-rose-50 text-rose-600 rounded-full border flex items-center justify-center hover:bg-rose-100" title="Hapus Anggota"><i class="fas fa-trash-can text-xs"></i></button>
+                                            <button onClick=${() => {
+                                                if (u.id === user.id) {
+                                                    notify("Anda tidak dapat menghapus akun Anda sendiri!", "error");
+                                                } else {
+                                                    setUserToDelete(u.id);
+                                                }
+                                            }} class="w-8 h-8 bg-rose-50 text-rose-600 rounded-full border flex items-center justify-center hover:bg-rose-100" title="Hapus Anggota"><i class="fas fa-trash-can text-xs"></i></button>
                                         `}
                                     </div>
                                 </div>
                             `)}
                         </div>
                     </div>
+
+                    <!-- CUSTOM CONFIRMATION DELETION MODAL OVERLAY -->
+                    ${userToDelete && html`
+                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div class="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
+                                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl mx-auto"><i class="fas fa-trash"></i></div>
+                                <h3 class="font-black text-slate-800 text-lg">Hapus Anggota Tim?</h3>
+                                <p class="text-xs text-slate-500 leading-relaxed">Tindakan ini akan menghapus data anggota secara permanen dari basis data HRIS.</p>
+                                <div class="grid grid-cols-2 gap-2 pt-2">
+                                    <button onClick=${() => setUserToDelete(null)} class="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
+                                    <button onClick=${triggerDeleteUser} class="p-3 bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Hapus Permanen</button>
+                                </div>
+                            </div>
+                        </div>
+                    `}
 
                     <!-- MODAL EDIT DATA PROFIL KUSTOM (MENGGANTIKAN CONFIRM/PROMPT) -->
                     ${editingUser && html`
@@ -1048,9 +1096,11 @@
             `;
         }
 
-        function DatabasePage({ users, att, tasks, ann, notify }) {
+        function DatabasePage({ users, setUsers, att, setAtt, tasks, setTasks, ann, setAnn, gsheetUrl, setGsheetUrl, notify }) {
             const [searchTerm, setSearchTerm] = useState('');
             const [filterTab, setFilterTab] = useState('all');
+            const [syncLoading, setSyncLoading] = useState(false);
+            const [showAppsScriptGuide, setShowAppsScriptGuide] = useState(false);
 
             // Format data unduhan laporan CSV dinamis
             const handleExportData = () => {
@@ -1073,6 +1123,49 @@
                 notify("Ekspor CSV Laporan Berhasil!");
             };
 
+            // FUNGSI SEND DATA KE GOOGLE SHEET VIA WEB APP URL (PUSH)
+            const handlePushToSheet = async () => {
+                if (!gsheetUrl) return notify("Harap masukkan URL Google Apps Script Web App!", "error");
+                setSyncLoading(true);
+                try {
+                    const payload = { users, attendance: att, tasks, announcements: ann };
+                    await fetch(gsheetUrl, {
+                        method: 'POST',
+                        mode: 'no-cors', // Standard CORS workaround untuk Google Web Apps
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'push', payload })
+                    });
+                    notify("Penyelarasan (Push) berhasil dikirim ke Google Sheet!");
+                } catch (e) {
+                    notify("Penyelarasan gagal: " + e.message, "error");
+                } finally {
+                    setSyncLoading(false);
+                }
+            };
+
+            // FUNGSI AMBIL DATA DARI GOOGLE SHEET (PULL)
+            const handlePullFromSheet = async () => {
+                if (!gsheetUrl) return notify("Harap masukkan URL Google Apps Script Web App!", "error");
+                setSyncLoading(true);
+                try {
+                    const response = await fetch(gsheetUrl);
+                    const data = await response.json();
+                    if (data && data.users && data.tasks) {
+                        setUsers(data.users);
+                        setAtt(data.attendance || []);
+                        setTasks(data.tasks);
+                        setAnn(data.announcements || []);
+                        notify("Database lokal berhasil ditarik (Pull) dari Google Sheet!");
+                    } else {
+                        notify("Gagal memparsing database Google Sheet, pastikan struktur Apps Script benar.", "error");
+                    }
+                } catch (e) {
+                    notify("Penarikan gagal: " + e.message, "error");
+                } finally {
+                    setSyncLoading(false);
+                }
+            };
+
             return html`
                 <div class="space-y-6">
                     <div class="flex justify-between items-center flex-wrap gap-3">
@@ -1083,6 +1176,78 @@
                         <button onClick=${handleExportData} class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
                             <i class="fas fa-file-csv mr-1"></i> Unduh Laporan CSV
                         </button>
+                    </div>
+
+                    <!-- KONEKSI INTEGRASI GOOGLE SHEET DATABASE -->
+                    <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 rounded-[2.5rem] text-white shadow-xl space-y-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="bg-emerald-500/40 text-emerald-100 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider">Cloud Integrasi</span>
+                                <h4 class="text-lg font-black mt-2">Sinkronisasi Cloud Google Sheets</h4>
+                                <p class="text-xs text-emerald-100/90 leading-relaxed max-w-xl">Pindahkan dan sinkronkan database absensi, status tugas, dan direktori HRIS secara otomatis menggunakan Google Apps Script.</p>
+                            </div>
+                            <button onClick=${() => setShowAppsScriptGuide(!showAppsScriptGuide)} class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-xs font-bold rounded-xl transition-all">
+                                <i class="fas fa-info-circle mr-1"></i> Panduan Setup
+                            </button>
+                        </div>
+
+                        ${showAppsScriptGuide && html`
+                            <div class="bg-white/10 p-4 rounded-2xl text-xs space-y-3 border border-white/10">
+                                <p class="font-bold text-white uppercase tracking-widest text-[9px]">Langkah Integrasi:</p>
+                                <ol class="list-decimal list-inside space-y-2 text-emerald-100">
+                                    <li>Buka Spreadsheet baru di <strong class="text-white">Google Sheet</strong>.</li>
+                                    <li>Klik <strong class="text-white">Extensions -> Apps Script</strong>.</li>
+                                    <li>Hapus kode bawaan, lalu tempelkan skrip penanganan database standar:</li>
+                                </ol>
+                                <pre class="bg-slate-900/80 p-3 rounded-xl overflow-x-auto text-[10px] font-mono text-emerald-400 max-h-48 no-scrollbar">
+function doGet(e) {
+  var prop = PropertiesService.getScriptProperties();
+  var db = prop.getProperty('sales_db_backup');
+  return ContentService.createTextOutput(db || "{}").setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  var prop = PropertiesService.getScriptProperties();
+  if (data.action === 'push') {
+    prop.setProperty('sales_db_backup', JSON.stringify(data.payload));
+    
+    // Tulis visual ke baris sheet
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    sheet.clear();
+    sheet.appendRow(["DATA PENJUALAN LAPANGAN", "TERSYNCHRONIZED ON: " + new Date()]);
+    sheet.appendRow(["Kategori", "ID", "Nama/Detail", "Email/Notes"]);
+    data.payload.users.forEach(function(u) {
+      sheet.appendRow(["Karyawan", u.id, u.name, u.email]);
+    });
+    data.payload.attendance.forEach(function(a) {
+      sheet.appendRow(["Presensi", a.id, a.userName, a.type + " - " + a.notes]);
+    });
+    return ContentService.createTextOutput(JSON.stringify({status:"ok"}));
+  }
+}</pre>
+                                <ol start="4" class="list-decimal list-inside space-y-2 text-emerald-100">
+                                    <li>Klik <strong class="text-white">Deploy -> New Deployment</strong>, pilih tipe <strong class="text-white">Web App</strong>, ubah akses 'Who has access' menjadi <strong class="text-white">Anyone</strong> (Siapa saja), lalu salin URL yang dihasilkan.</li>
+                                </ol>
+                            </div>
+                        `}
+
+                        <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                            <div class="relative flex-1">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-300"><i class="fas fa-link text-xs"></i></span>
+                                <input type="text" placeholder="Masukkan URL Google Apps Script Web App Anda..." value=${gsheetUrl} onInput=${e => setGsheetUrl(e.target.value)} class="w-full pl-9 pr-4 py-3 bg-white/10 placeholder-emerald-200 text-white border border-white/20 rounded-2xl outline-none text-xs font-semibold focus:bg-white/20 transition-all" />
+                            </div>
+                            <div class="flex gap-2">
+                                <button onClick=${handlePushToSheet} disabled=${syncLoading} class="px-4 py-3 bg-white hover:bg-emerald-50 text-emerald-800 rounded-2xl text-xs font-bold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all min-w-[120px]">
+                                    ${syncLoading ? html`<i class="fas fa-spinner animate-spin"></i>` : html`<i class="fas fa-cloud-arrow-up"></i>`}
+                                    <span>Push Data</span>
+                                </button>
+                                <button onClick=${handlePullFromSheet} disabled=${syncLoading} class="px-4 py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all min-w-[120px]">
+                                    ${syncLoading ? html`<i class="fas fa-spinner animate-spin"></i>` : html`<i class="fas fa-cloud-arrow-down"></i>`}
+                                    <span>Pull Data</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- RINGKASAN AKTIVITAS GRAFIK SIMULASI -->
