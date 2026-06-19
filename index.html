@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SalesTrack Pro v2.0 | Portal Lapangan Ringan</title>
+    <title>SalesTrack Pro v2.1 | Portal Lapangan Ringan</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -84,17 +84,19 @@
                 title: "Target Operasional Juni", 
                 content: "Fokus peningkatan penetrasi produk baru ke sektor ritel tradisional wilayah Jakarta.", 
                 date: "18/06/2026", 
-                author: "Hendra Manager" 
+                author: "Hendra Manager",
+                attachment: null,
+                attachmentName: "",
+                attachmentType: ""
             }
         ];
 
-        // Membungkus akses penyimpanan dengan pengaman try-catch untuk menangkap larangan sandbox iframe
         const safeGetItem = (key, fallback) => {
             try {
                 const value = localStorage.getItem(key);
                 return value ? JSON.parse(value) : fallback;
             } catch (e) {
-                console.warn("Storage access restricted. Utilizing memory buffer.", e);
+                console.warn("Akses penyimpanan lokal dibatasi. Menggunakan buffer memori.", e);
                 return fallback;
             }
         };
@@ -103,16 +105,16 @@
             try {
                 localStorage.setItem(key, JSON.stringify(value));
             } catch (e) {
-                // Berjalan diam secara aman di dalam browser yang terisolasi sandboxing
+                // Diabaikan secara aman jika terisolasi sandbox
             }
         };
 
         function App() {
-            const [users, setUsers] = useState(() => safeGetItem('st_users_v2', INITIAL_USERS));
-            const [currentUser, setCurrentUser] = useState(() => safeGetItem('st_curr_v2', null));
-            const [attendance, setAttendance] = useState(() => safeGetItem('st_att_v2', []));
-            const [tasks, setTasks] = useState(() => safeGetItem('st_tasks_v2', INITIAL_TASKS));
-            const [announcements, setAnnouncements] = useState(() => safeGetItem('st_ann_v2', INITIAL_ANNOUNCEMENTS));
+            const [users, setUsers] = useState(() => safeGetItem('st_users_v2.1', INITIAL_USERS));
+            const [currentUser, setCurrentUser] = useState(() => safeGetItem('st_curr_v2.1', null));
+            const [attendance, setAttendance] = useState(() => safeGetItem('st_att_v2.1', []));
+            const [tasks, setTasks] = useState(() => safeGetItem('st_tasks_v2.1', INITIAL_TASKS));
+            const [announcements, setAnnouncements] = useState(() => safeGetItem('st_ann_v2.1', INITIAL_ANNOUNCEMENTS));
 
             // UI States
             const [activeTab, setActiveTab] = useState('dashboard');
@@ -121,11 +123,11 @@
 
             // Penyinkronan otomatis data state ke memori penyimpanan lokal HP
             useEffect(() => {
-                safeSetItem('st_users_v2', users);
-                safeSetItem('st_curr_v2', currentUser);
-                safeSetItem('st_att_v2', attendance);
-                safeSetItem('st_tasks_v2', tasks);
-                safeSetItem('st_ann_v2', announcements);
+                safeSetItem('st_users_v2.1', users);
+                safeSetItem('st_curr_v2.1', currentUser);
+                safeSetItem('st_att_v2.1', attendance);
+                safeSetItem('st_tasks_v2.1', tasks);
+                safeSetItem('st_ann_v2.1', announcements);
             }, [users, currentUser, attendance, tasks, announcements]);
 
             const showNotification = (message, type = 'success') => {
@@ -164,7 +166,7 @@
                         </div>
                     `}
 
-                    <!-- CUSTOM RESET MODAL OVERLAY (Menggantikan confirm browser yang sering crash) -->
+                    <!-- CUSTOM RESET MODAL OVERLAY -->
                     ${showResetModal && html`
                         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                             <div class="bg-white p-6 rounded-[2rem] max-w-sm w-full shadow-2xl border text-center space-y-4">
@@ -193,7 +195,7 @@
                             </div>
 
                             <div class="hidden md:flex items-center gap-3 mb-6 bg-indigo-900/40 p-3 rounded-xl border border-indigo-900/50">
-                                <img src=${currentUser.avatar || "https://i.pravatar.cc/150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
+                                <img src=${currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150"} class="w-10 h-10 rounded-full object-cover border-2 border-indigo-500" />
                                 <div class="min-w-0 flex-1">
                                     <p class="font-bold text-xs truncate text-indigo-100">${currentUser.name}</p>
                                     <p class="text-[10px] text-indigo-400 uppercase tracking-wider font-bold">${currentUser.role === 'admin' ? '🛡️ Administrator' : '💼 Field Sales'}</p>
@@ -205,6 +207,9 @@
                                 <${NavBtn} icon="fa-camera" label=${currentUser.role === 'admin' ? 'Data Absen' : 'Kamera & Absensi'} active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
                                 <${NavBtn} icon="fa-list-check" label="Manajemen Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
                                 <${NavBtn} icon="fa-user-tie" label="Data HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
+                                ${currentUser.role === 'admin' && html`
+                                    <${NavBtn} icon="fa-database" label="Database & Lapor" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
+                                `}
                             </nav>
                         </div>
 
@@ -225,7 +230,8 @@
                         ${activeTab === 'dashboard' && html`<${Dashboard} user=${currentUser} att=${attendance} tasks=${tasks} ann=${announcements} setAnn=${setAnnouncements} notify=${showNotification} />`}
                         ${activeTab === 'absensi' && html`<${Absensi} user=${currentUser} att=${attendance} setAtt=${setAttendance} notify=${showNotification} />`}
                         ${activeTab === 'tugas' && html`<${TugasPage} user=${currentUser} tasks=${tasks} setTasks=${setTasks} users=${users} notify=${showNotification} />`}
-                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} users=${users} />`}
+                        ${activeTab === 'hris' && html`<${HRISPage} user=${currentUser} users=${users} setUsers=${setUsers} notify=${showNotification} />`}
+                        ${activeTab === 'database' && currentUser.role === 'admin' && html`<${DatabasePage} user=${currentUser} users=${users} att=${attendance} tasks=${tasks} ann=${announcements} notify=${showNotification} />`}
                     </main>
 
                     <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
@@ -234,6 +240,9 @@
                         <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
                         <${MobileNavBtn} icon="fa-list-check" label="Tugas" active=${activeTab === 'tugas'} onClick=${() => setActiveTab('tugas')} />
                         <${MobileNavBtn} icon="fa-user-tie" label="HRIS" active=${activeTab === 'hris'} onClick=${() => setActiveTab('hris')} />
+                        ${currentUser.role === 'admin' && html`
+                            <${MobileNavBtn} icon="fa-database" label="DB" active=${activeTab === 'database'} onClick=${() => setActiveTab('database')} />
+                        `}
                     </nav>
                 </div>
             `;
@@ -262,7 +271,7 @@
                         pos: form.role === 'admin' ? 'HR Manager' : form.pos,
                         div: form.div,
                         phone: form.phone,
-                        avatar: `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 999999)}?auto=format&fit=crop&q=80&w=200`,
+                        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
                         joinDate: new Date().toLocaleDateString('id-ID')
                     };
                     setUsers([...users, newUser]);
@@ -342,7 +351,23 @@
 
         function Dashboard({ user, att, tasks, ann, setAnn, notify }) {
             const [showAddAnn, setShowAddAnn] = useState(false);
-            const [newAnn, setNewAnn] = useState({ title: '', content: '' });
+            const [newAnn, setNewAnn] = useState({ title: '', content: '', attachment: null, attachmentName: '', attachmentType: '' });
+
+            const handleFileChange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setNewAnn({
+                        ...newAnn,
+                        attachment: reader.result,
+                        attachmentName: file.name,
+                        attachmentType: file.type
+                    });
+                    notify("Berkas media berhasil ditambahkan!");
+                };
+                reader.readAsDataURL(file);
+            };
 
             const handlePostAnn = (e) => {
                 e.preventDefault();
@@ -352,10 +377,13 @@
                     title: newAnn.title,
                     content: newAnn.content,
                     date: new Date().toLocaleDateString('id-ID'),
-                    author: user.name
+                    author: user.name,
+                    attachment: newAnn.attachment,
+                    attachmentName: newAnn.attachmentName,
+                    attachmentType: newAnn.attachmentType
                 };
                 setAnn([newItem, ...ann]);
-                setNewAnn({ title: '', content: '' });
+                setNewAnn({ title: '', content: '', attachment: null, attachmentName: '', attachmentType: '' });
                 setShowAddAnn(false);
                 notify("Pengumuman berhasil disebarkan!");
             };
@@ -415,18 +443,46 @@
                             <form onSubmit=${handlePostAnn} class="mb-6 space-y-3 bg-slate-50 p-4 rounded-3xl border border-dashed border-indigo-200">
                                 <input placeholder="Judul Pengumuman" value=${newAnn.title} onInput=${e => setNewAnn({...newAnn, title: e.target.value})} class="w-full p-3 bg-white rounded-xl text-sm font-semibold outline-none border" required />
                                 <textarea placeholder="Tulis isi pengumuman kepada seluruh tim sales..." value=${newAnn.content} onInput=${e => setNewAnn({...newAnn, content: e.target.value})} class="w-full p-3 bg-white rounded-xl text-sm h-24 outline-none border resize-none" required />
+                                
+                                <div class="bg-white p-3 rounded-2xl border flex flex-col space-y-2">
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase">Tambahkan Media / Dokumen (Foto/Video/PDF)</label>
+                                    <input type="file" onChange=${handleFileChange} class="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                                    ${newAnn.attachmentName && html`
+                                        <p class="text-[10px] text-emerald-600 font-bold"><i class="fas fa-paperclip mr-1"></i> Terlampir: ${newAnn.attachmentName}</p>
+                                    `}
+                                </div>
                                 <button type="submit" class="w-full p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Siarkan Pengumuman</button>
                             </form>
                         `}
 
-                        <div class="space-y-3 max-h-[350px] overflow-y-auto no-scrollbar">
+                        <div class="space-y-4 max-h-[450px] overflow-y-auto no-scrollbar">
                             ${ann.length === 0 ? html`
                                 <p class="text-center text-slate-400 text-xs py-6 font-semibold">Belum ada pengumuman hari ini.</p>
                             ` : ann.map(a => html`
-                                <div key=${a.id} class="p-4 bg-slate-50 rounded-2xl border relative hover:border-slate-300 transition-all">
+                                <div key=${a.id} class="p-4 bg-slate-50 rounded-2xl border relative hover:border-slate-300 transition-all space-y-3">
                                     <h4 class="font-bold text-indigo-950 text-sm">${a.title}</h4>
-                                    <p class="text-xs text-slate-500 mt-2 leading-relaxed whitespace-pre-line">${a.content}</p>
-                                    <div class="flex justify-between items-center mt-3 border-t pt-2 text-[9px] font-bold text-slate-400 uppercase">
+                                    <p class="text-xs text-slate-500 leading-relaxed whitespace-pre-line">${a.content}</p>
+                                    
+                                    <!-- Render Media Lampiran Secara Cerdas -->
+                                    ${a.attachment && html`
+                                        <div class="mt-2 border-t pt-2">
+                                            ${a.attachmentType?.startsWith('image/') ? html`
+                                                <img src=${a.attachment} class="max-w-full max-h-60 rounded-xl object-contain border" />
+                                            ` : a.attachmentType?.startsWith('video/') ? html`
+                                                <video src=${a.attachment} controls class="w-full max-h-60 rounded-xl border bg-black"></video>
+                                            ` : html`
+                                                <a href=${a.attachment} download=${a.attachmentName} class="inline-flex items-center gap-2 p-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-100">
+                                                    <i class="fas fa-file-invoice text-lg"></i>
+                                                    <div class="text-left">
+                                                        <p class="font-bold text-[10px] uppercase text-indigo-400">Unduh Dokumen</p>
+                                                        <p class="text-xs truncate max-w-[200px]">${a.attachmentName || 'lampiran.pdf'}</p>
+                                                    </div>
+                                                </a>
+                                            `}
+                                        </div>
+                                    `}
+
+                                    <div class="flex justify-between items-center border-t pt-2 text-[9px] font-bold text-slate-400 uppercase mt-2">
                                         <span>Oleh: ${a.author} • ${a.date}</span>
                                         ${user.role === 'admin' && html`
                                             <button onClick=${() => handleDeleteAnn(a.id)} class="text-rose-500 hover:underline">Hapus</button>
@@ -443,12 +499,8 @@
         function Absensi({ user, att, setAtt, notify }) {
             const [notes, setNotes] = useState('');
             const [type, setType] = useState('Masuk');
-            
-            // Kamera
             const [camActive, setCamActive] = useState(false);
             const [photo, setPhoto] = useState(null);
-            
-            // GPS
             const [gpsData, setGpsData] = useState(null);
             const [gpsLoading, setGpsLoading] = useState(false);
 
@@ -486,11 +538,7 @@
                         }
                     );
                 } catch (e) {
-                    setGpsData({
-                        lat: -6.2088,
-                        lng: 106.8456,
-                        address: "Sistem GPS Diblokir Sandbox Browser"
-                    });
+                    setGpsData({ lat: -6.2088, lng: 106.8456, address: "Sistem GPS Diblokir Sandbox Browser" });
                     setGpsLoading(false);
                 }
             };
@@ -500,20 +548,16 @@
                 const enableCamera = async () => {
                     if (camActive && videoRef.current) {
                         try {
-                            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                                throw new Error("Akses kamera tidak didukung.");
-                            }
                             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
                             videoRef.current.srcObject = stream;
                         } catch (e) {
-                            console.warn(e);
                             const fallbackPhotos = [
                                 "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300",
                                 "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=300"
                             ];
                             setPhoto(fallbackPhotos[Math.floor(Math.random() * fallbackPhotos.length)]);
                             setCamActive(false);
-                            notify("Akses kamera gagal. Memakai foto demo otomatis.", "error");
+                            notify("Kamera gagal diakses. Memakai foto demo otomatis.", "error");
                         }
                     }
                 };
@@ -532,7 +576,6 @@
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     canvas.getContext('2d').drawImage(video, 0, 0);
-                    
                     setPhoto(canvas.toDataURL('image/png'));
                     setCamActive(false);
                     notify("Foto berhasil diambil!");
@@ -567,7 +610,7 @@
                     ${user.role === 'admin' ? html`
                         <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
                           <h3 class="text-xl font-bold text-slate-800 mb-2">Riwayat Presensi Tim Sales</h3>
-                          <p class="text-xs text-slate-400 mb-6">Dashboard monitor kehadiran, foto verifikasi, dan GPS sales di lapangan</p>
+                          <p class="text-xs text-slate-400 mb-6">Monitor presensi lapangan lengkap beserta koordinat satelit</p>
 
                           <div class="space-y-4 max-h-[500px] overflow-y-auto no-scrollbar">
                               ${att.length === 0 ? html`
@@ -620,7 +663,7 @@
                                         ${photo && html`<img src=${photo} class="w-full h-full object-cover" />`}
                                         ${!camActive && !photo && html`
                                             <div class="text-center text-slate-500 p-4">
-                                                <i class="fas fa-camera class text-4xl mb-2 text-slate-700"></i>
+                                                <i class="fas fa-camera text-4xl mb-2 text-slate-700"></i>
                                                 <p class="text-[10px] font-bold uppercase tracking-wider">Kamera Belum Aktif</p>
                                             </div>
                                         `}
@@ -783,11 +826,90 @@
             `;
         }
 
-        function HRISPage({ user, users }) {
+        function HRISPage({ user, users, setUsers, notify }) {
+            const [editingUser, setEditingUser] = useState(null);
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative', avatar: '' });
+
+            // Pengonversi Berkas Foto Asli Menjadi Base64
+            const handleImageUpload = (e, userId) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (userId) {
+                        // Memperbarui foto profil karyawan yang sudah ada
+                        const updatedUsers = users.map(u => {
+                            if (u.id === userId) {
+                                return { ...u, avatar: reader.result };
+                            }
+                            return u;
+                        });
+                        setUsers(updatedUsers);
+                        notify("Foto profil berhasil diperbarui!");
+                    } else {
+                        // Memperbarui foto pendaftaran karyawan baru
+                        setNewUser({ ...newUser, avatar: reader.result });
+                        notify("Foto pendaftaran siap digunakan!");
+                    }
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const handleSaveEdit = (e) => {
+                e.preventDefault();
+                const updatedUsers = users.map(u => {
+                    if (u.id === editingUser.id) {
+                        return editingUser;
+                    }
+                    return u;
+                });
+                setUsers(updatedUsers);
+                setEditingUser(null);
+                notify("Data profil berhasil diperbarui!");
+            };
+
+            const handleAddNewMember = (e) => {
+                e.preventDefault();
+                if (!newUser.name || !newUser.email || !newUser.password || !newUser.phone) {
+                    return notify("Lengkapi data yang diwajibkan!", "error");
+                }
+                const createdUser = {
+                    ...newUser,
+                    id: "U" + Date.now().toString().slice(-4),
+                    joinDate: new Date().toLocaleDateString('id-ID'),
+                    avatar: newUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"
+                };
+                setUsers([...users, createdUser]);
+                setShowAddModal(false);
+                setNewUser({ name: '', email: '', password: '', phone: '', role: 'staff', div: 'Jakarta', pos: 'Sales Representative', avatar: '' });
+                notify("Anggota tim baru berhasil didaftarkan!");
+            };
+
+            const handleDeleteUser = (userId) => {
+                if (userId === user.id) {
+                    return notify("Anda tidak dapat menghapus akun Anda sendiri!", "error");
+                }
+                if (confirm("Apakah Anda yakin ingin menghapus anggota tim ini secara permanen dari HRIS?")) {
+                    setUsers(users.filter(u => u.id !== userId));
+                    notify("Anggota berhasil dihapus.", "error");
+                }
+            };
+
             return html`
                 <div class="space-y-6">
-                    <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto">
-                        <img src=${user.avatar || "https://i.pravatar.cc/150"} class="w-20 h-20 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-4" />
+                    <!-- MAIN CARD PROFIL MANDIRI -->
+                    <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto relative overflow-hidden">
+                        <div class="relative group cursor-pointer">
+                            <img src=${user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"} class="w-24 h-24 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-2" />
+                            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-all">
+                                <label class="cursor-pointer">
+                                    <i class="fas fa-camera text-base"></i>
+                                    <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, user.id)} class="hidden" />
+                                </label>
+                            </div>
+                        </div>
                         <h3 class="font-black text-xl text-slate-800">${user.name}</h3>
                         <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">${user.pos} • ${user.div}</p>
                         
@@ -805,24 +927,251 @@
                                 <span class="text-slate-800">${user.phone}</span>
                             </div>
                         </div>
+
+                        <button onClick=${() => setEditingUser(user)} class="mt-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 transition-all">
+                            <i class="fas fa-edit mr-1"></i> Ganti Profil
+                        </button>
                     </div>
 
+                    <!-- DIREKTORI HRIS / DAFTAR REKAN KERJA -->
                     <div>
-                        <h3 class="font-black text-slate-400 text-[10px] uppercase tracking-wider mb-3 px-2">Direktori Kontak Rekan Kerja</h3>
+                        <div class="flex justify-between items-center mb-3 px-2">
+                            <h3 class="font-black text-slate-400 text-[10px] uppercase tracking-wider">Direktori & Kontak Rekan Kerja</h3>
+                            ${user.role === 'admin' && html`
+                                <button onClick=${() => setShowAddModal(true)} class="text-indigo-600 font-bold text-xs uppercase hover:underline">
+                                    <i class="fas fa-user-plus mr-1"></i> Tambah Anggota
+                                </button>
+                            `}
+                        </div>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             ${users.map(u => html`
-                                <div key=${u.id} class="bg-white p-4 rounded-3xl border flex items-center gap-3">
-                                    <img src=${u.avatar || "https://i.pravatar.cc/150"} class="w-10 h-10 rounded-full object-cover border" />
+                                <div key=${u.id} class="bg-white p-4 rounded-3xl border flex items-center gap-3 shadow-sm">
+                                    <div class="relative group">
+                                        <img src=${u.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"} class="w-12 h-12 rounded-full object-cover border" />
+                                        ${user.role === 'admin' && html`
+                                            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white text-[9px] opacity-0 group-hover:opacity-100 transition-all">
+                                                <label class="cursor-pointer">
+                                                    <i class="fas fa-upload"></i>
+                                                    <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, u.id)} class="hidden" />
+                                                </label>
+                                            </div>
+                                        `}
+                                    </div>
                                     <div class="flex-1 min-w-0">
                                         <h4 class="font-bold text-slate-800 text-xs truncate">${u.name}</h4>
                                         <p class="text-[10px] text-slate-400 truncate">${u.pos} • ${u.div}</p>
                                     </div>
-                                    <div class="flex gap-1">
+                                    <div class="flex gap-1 items-center">
                                         <a href="tel:${u.phone || ''}" class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center border hover:bg-emerald-100 transition-all"><i class="fas fa-phone text-xs"></i></a>
                                         <a href="https://wa.me/62${(u.phone || '').startsWith('0') ? (u.phone || '').substring(1) : (u.phone || '')}" target="_blank" class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center border hover:bg-indigo-100 transition-all"><i class="fab fa-whatsapp text-xs"></i></a>
+                                        ${user.role === 'admin' && html`
+                                            <button onClick=${() => setEditingUser(u)} class="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-full border flex items-center justify-center hover:bg-indigo-100" title="Edit Data Karyawan"><i class="fas fa-pen text-xs"></i></button>
+                                            <button onClick=${() => handleDeleteUser(u.id)} class="w-8 h-8 bg-rose-50 text-rose-600 rounded-full border flex items-center justify-center hover:bg-rose-100" title="Hapus Anggota"><i class="fas fa-trash-can text-xs"></i></button>
+                                        `}
                                     </div>
                                 </div>
                             `)}
+                        </div>
+                    </div>
+
+                    <!-- MODAL EDIT DATA PROFIL KUSTOM (MENGGANTIKAN CONFIRM/PROMPT) -->
+                    ${editingUser && html`
+                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <form onSubmit=${handleSaveEdit} class="bg-white p-6 rounded-[2.5rem] max-w-sm w-full shadow-2xl border space-y-4">
+                                <h3 class="font-black text-slate-800 text-lg">Ubah Data Profil</h3>
+                                <div class="space-y-3">
+                                    <input placeholder="Nama Lengkap" value=${editingUser.name} onInput=${e => setEditingUser({...editingUser, name: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-sm font-semibold" required />
+                                    <input placeholder="Email" type="email" value=${editingUser.email} onInput=${e => setEditingUser({...editingUser, email: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-sm font-semibold" required />
+                                    <input placeholder="Nomor WhatsApp" value=${editingUser.phone} onInput=${e => setEditingUser({...editingUser, phone: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-sm font-semibold" required />
+                                    
+                                    ${user.role === 'admin' && html`
+                                        <select value=${editingUser.role} onChange=${e => setEditingUser({...editingUser, role: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold">
+                                            <option value="staff">Staff Sales</option>
+                                            <option value="admin">Administrator / HRD</option>
+                                        </select>
+                                    `}
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 pt-2">
+                                    <button type="button" onClick=${() => setEditingUser(null)} class="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
+                                    <button type="submit" class="p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Simpan</button>
+                                </div>
+                            </form>
+                        </div>
+                    `}
+
+                    <!-- MODAL TAMBAH ANGGOTA BARU (KHUSUS ADMIN) -->
+                    ${showAddModal && html`
+                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <form onSubmit=${handleAddNewMember} class="bg-white p-6 rounded-[2.5rem] max-w-sm w-full shadow-2xl border space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+                                <h3 class="font-black text-slate-800 text-lg">Tambah Anggota Baru</h3>
+                                
+                                <div class="space-y-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-12 h-12 rounded-full border bg-slate-100 flex items-center justify-center relative overflow-hidden">
+                                            ${newUser.avatar ? html`
+                                                <img src=${newUser.avatar} class="w-full h-full object-cover" />
+                                            ` : html`
+                                                <i class="fas fa-user-plus text-slate-400"></i>
+                                            `}
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] font-bold text-indigo-600 uppercase cursor-pointer">
+                                                Pilih Foto Profil
+                                                <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, null)} class="hidden" />
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <input placeholder="Nama Lengkap" value=${newUser.name} onInput=${e => setNewUser({...newUser, name: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold" required />
+                                    <input placeholder="Email" type="email" value=${newUser.email} onInput=${e => setNewUser({...newUser, email: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold" required />
+                                    <input placeholder="Password" type="password" value=${newUser.password} onInput=${e => setNewUser({...newUser, password: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold" required />
+                                    <input placeholder="Nomor WhatsApp" value=${newUser.phone} onInput=${e => setNewUser({...newUser, phone: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold" required />
+                                    
+                                    <select value=${newUser.role} onChange=${e => setNewUser({...newUser, role: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold">
+                                        <option value="staff">Staff Sales Lapangan</option>
+                                        <option value="admin">Administrator / HRD</option>
+                                    </select>
+
+                                    <input placeholder="Jabatan (Posisi)" value=${newUser.pos} onInput=${e => setNewUser({...newUser, pos: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold" required />
+                                    <input placeholder="Divisi" value=${newUser.div} onInput=${e => setNewUser({...newUser, div: e.target.value})} class="w-full p-3 rounded-2xl bg-slate-50 border outline-none text-xs font-semibold" required />
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 pt-2">
+                                    <button type="button" onClick=${() => setShowAddModal(false)} class="p-3 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold uppercase tracking-wider">Batal</button>
+                                    <button type="submit" class="p-3 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider">Tambahkan</button>
+                                </div>
+                            </form>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function DatabasePage({ users, att, tasks, ann, notify }) {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterTab, setFilterTab] = useState('all');
+
+            // Format data unduhan laporan CSV dinamis
+            const handleExportData = () => {
+                const csvRows = [];
+                csvRows.push("Kategori,ID,Detail Utama,Detail Tambahan,Tanggal/Waktu");
+                
+                users.forEach(u => csvRows.push(`Karyawan,${u.id},${u.name},${u.email} - ${u.pos},${u.joinDate}`));
+                att.forEach(a => csvRows.push(`Presensi,${a.id},${a.userName},${a.type} - ${a.notes.replace(/,/g, '')},${a.time}`));
+                tasks.forEach(t => csvRows.push(`Tugas,${t.id},${t.title},PIC: ${t.assignedName} - Status: ${t.status},Deadline: ${t.deadline}`));
+                ann.forEach(a => csvRows.push(`Pengumuman,${a.id},${a.title},Oleh: ${a.author},${a.date}`));
+
+                const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `Laporan_SalesTrack_Keseluruhan_${new Date().toISOString().slice(0,10)}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                notify("Ekspor CSV Laporan Berhasil!");
+            };
+
+            return html`
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center flex-wrap gap-3">
+                        <div>
+                            <h3 class="text-xl font-black text-slate-800">Laporan & Database Keseluruhan</h3>
+                            <p class="text-xs text-slate-400">Ringkasan analitik data aktivitas seluruh tim operasional</p>
+                        </div>
+                        <button onClick=${handleExportData} class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                            <i class="fas fa-file-csv mr-1"></i> Unduh Laporan CSV
+                        </button>
+                    </div>
+
+                    <!-- RINGKASAN AKTIVITAS GRAFIK SIMULASI -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-5 rounded-[2rem] border shadow-sm space-y-3">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Statistik Kehadiran Bulanan</h4>
+                            <div class="flex items-end gap-2 h-32 pt-4">
+                                <div class="flex-1 bg-indigo-200 h-[40%] rounded-t-lg relative group"><span class="absolute bottom-full left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-all">40%</span></div>
+                                <div class="flex-1 bg-indigo-200 h-[60%] rounded-t-lg relative group"><span class="absolute bottom-full left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-all">60%</span></div>
+                                <div class="flex-1 bg-indigo-200 h-[50%] rounded-t-lg relative group"><span class="absolute bottom-full left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-all">50%</span></div>
+                                <div class="flex-1 bg-indigo-600 h-[95%] rounded-t-lg relative group"><span class="absolute bottom-full left-1/2 -translate-x-1/2 text-[9px] font-bold text-indigo-700 opacity-100">95%</span></div>
+                            </div>
+                            <div class="flex justify-between text-[9px] font-bold text-slate-400 uppercase border-t pt-2">
+                                <span>M1</span>
+                                <span>M2</span>
+                                <span>M3</span>
+                                <span class="text-indigo-600 font-extrabold">Hari Ini</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-[2rem] border shadow-sm space-y-3">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Analisis KPI Tim Sales</h4>
+                            <div class="space-y-2 text-xs">
+                                <div class="flex justify-between">
+                                    <span class="font-bold text-slate-600">Kehadiran Harian</span>
+                                    <span class="font-extrabold text-indigo-900">${att.length} Absensi</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-500 h-full" style="width: 85%"></div>
+                                </div>
+                                <div class="flex justify-between mt-2">
+                                    <span class="font-bold text-slate-600">Tugas Diselesaikan</span>
+                                    <span class="font-extrabold text-indigo-900">${tasks.filter(t => t.status === 'Selesai').length} / ${tasks.length} Tugas</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-indigo-600 h-full" style="width: ${tasks.length ? (tasks.filter(t => t.status === 'Selesai').length / tasks.length) * 100 : 0}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PENELUSURAN DATA TIM -->
+                    <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="relative flex-1 max-w-sm">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><i class="fas fa-search text-xs"></i></span>
+                                <input type="text" placeholder="Cari nama, tugas, atau presensi..." value=${searchTerm} onInput=${e => setSearchTerm(e.target.value)} class="w-full pl-9 pr-4 py-2.5 bg-slate-50 border rounded-2xl outline-none text-xs font-semibold focus:border-indigo-500 transition-all" />
+                            </div>
+                            <div class="flex gap-1.5 overflow-x-auto no-scrollbar">
+                                <button onClick=${() => setFilterTab('all')} class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${filterTab === 'all' ? 'bg-indigo-950 text-white border-indigo-950' : 'bg-slate-50 text-slate-400'}">Semua</button>
+                                <button onClick=${() => setFilterTab('att')} class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${filterTab === 'att' ? 'bg-indigo-950 text-white border-indigo-950' : 'bg-slate-50 text-slate-400'}">Presensi</button>
+                                <button onClick=${() => setFilterTab('tasks')} class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${filterTab === 'tasks' ? 'bg-indigo-950 text-white border-indigo-950' : 'bg-slate-50 text-slate-400'}">Tugas</button>
+                            </div>
+                        </div>
+
+                        <!-- TABEL DATA LENGKAP -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b text-slate-400 uppercase tracking-widest text-[9px] font-bold">
+                                        <th class="p-3">Kategori</th>
+                                        <th class="p-3">Detail Utama</th>
+                                        <th class="p-3">Keterangan</th>
+                                        <th class="p-3">Waktu/Batas</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y font-semibold text-slate-600">
+                                    ${(filterTab === 'all' || filterTab === 'att') && att
+                                        .filter(a => a.userName.toLowerCase().includes(searchTerm.toLowerCase()) || a.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+                                        .map(a => html`
+                                        <tr class="hover:bg-slate-50/40">
+                                            <td class="p-3"><span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[8px] uppercase font-bold">Presensi</span></td>
+                                            <td class="p-3 font-bold text-slate-800">${a.userName}</td>
+                                            <td class="p-3 truncate max-w-[150px]">${a.type} - ${a.notes}</td>
+                                            <td class="p-3 text-indigo-700 font-bold">${a.time}</td>
+                                        </tr>
+                                    `)}
+                                    ${(filterTab === 'all' || filterTab === 'tasks') && tasks
+                                        .filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase()) || t.assignedName.toLowerCase().includes(searchTerm.toLowerCase()))
+                                        .map(t => html`
+                                        <tr class="hover:bg-slate-50/40">
+                                            <td class="p-3"><span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[8px] uppercase font-bold">Tugas</span></td>
+                                            <td class="p-3 font-bold text-slate-800">${t.title}</td>
+                                            <td class="p-3">PIC: ${t.assignedName} (${t.status})</td>
+                                            <td class="p-3 text-rose-600 font-bold">${t.deadline}</td>
+                                        </tr>
+                                    `)}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
