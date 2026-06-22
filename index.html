@@ -216,6 +216,9 @@
             const [isAuthLoading, setIsAuthLoading] = useState(true);
             const [authErrorMessage, setAuthErrorMessage] = useState('');
 
+            // Ref khusus untuk melacak timeout aktif agar pemberitahuan tidak saling menghapus secara prematur
+            const notificationTimeoutRef = useRef(null);
+
             // Simpan data ke memori fisik lokal agar tidak hilang saat mati sinyal
             useEffect(() => {
                 setLocalData('st_users', users);
@@ -238,8 +241,14 @@
             }, [announcements]);
 
             const showNotification = (message, type = 'success') => {
+                if (notificationTimeoutRef.current) {
+                    clearTimeout(notificationTimeoutRef.current);
+                }
                 setNotification({ message, type });
-                setTimeout(() => setNotification(null), 4000);
+                notificationTimeoutRef.current = setTimeout(() => {
+                    setNotification(null);
+                    notificationTimeoutRef.current = null;
+                }, 4000);
             };
 
             // Meminta Izin Notifikasi Sistem saat Pengguna Berhasil Login
@@ -440,8 +449,8 @@
                 } else if (collectionName === 'attendance') {
                     setAttendance(prev => [data, ...prev.filter(a => a.id !== docId)]);
                 } else if (collectionName === 'tasks') {
-                    setUsers(prev => {
-                        const index = prev.findIndex(u => u.id === docId);
+                    setTasks(prev => {
+                        const index = prev.findIndex(t => t.id === docId);
                         if (index > -1) {
                             const copy = [...prev];
                             copy[index] = data;
@@ -524,13 +533,13 @@
                 <div class="min-h-screen flex flex-col md:flex-row bg-slate-50">
                     
                     <!-- Top Toast Banner -->
-                    ${notification && html`
-                        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
+                    ${notification ? html`
+                        <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex items-center gap-2 px-6 py-3 rounded-xl shadow-xl text-white font-semibold transition-all duration-300 ${
                             notification.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
                         }">
                             <span>${notification.message}</span>
                         </div>
-                    `}
+                    ` : ''}
 
                     <!-- CUSTOM RESET MODAL OVERLAY -->
                     ${showResetModal && html`
