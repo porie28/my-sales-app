@@ -59,7 +59,7 @@
                         }
                     } else {
                         if (height > maxHeight) {
-                            width = Math.round((width * maxHeight) / height);
+                            width = Math.round((height * maxHeight) / height);
                             height = maxHeight;
                         }
                     }
@@ -185,6 +185,22 @@
             } catch(e) {}
         };
 
+        // Fungsi Membantu Mengirimkan Notifikasi Sistem Push Browser
+        const triggerSystemNotification = (title, bodyText) => {
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    try {
+                        new Notification(title, {
+                            body: bodyText,
+                            icon: "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=150"
+                        });
+                    } catch (e) {
+                        console.warn("Gagal memicu push notification di perangkat mobile browser:", e);
+                    }
+                }
+            }
+        };
+
         function App() {
             const [users, setUsers] = useState(() => getLocalData('st_users', INITIAL_USERS));
             const [currentUser, setCurrentUser] = useState(() => getLocalData('st_curr_user', null));
@@ -226,6 +242,19 @@
                 setTimeout(() => setNotification(null), 4000);
             };
 
+            // Meminta Izin Notifikasi Sistem saat Pengguna Berhasil Login
+            useEffect(() => {
+                if (currentUser && typeof window !== 'undefined' && 'Notification' in window) {
+                    if (Notification.permission === 'default') {
+                        Notification.requestPermission().then(permission => {
+                            if (permission === 'granted') {
+                                showNotification("Izin notifikasi disetujui! Anda akan menerima update latar belakang.");
+                            }
+                        });
+                    }
+                }
+            }, [currentUser]);
+
             useEffect(() => {
                 const connectCloud = async () => {
                     try {
@@ -263,6 +292,12 @@
                 const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', 'tasks');
                 const announcementsRef = collection(db, 'artifacts', appId, 'public', 'data', 'announcements');
 
+                // Flag untuk menolak notifikasi spam dari data historis saat awal memuat aplikasi
+                let isFirstUsers = true;
+                let isFirstAttendance = true;
+                let isFirstTasks = true;
+                let isFirstAnnouncements = true;
+
                 // Sinkronisasi data karyawan secara real-time
                 const unsubUsers = onSnapshot(usersRef, (snapshot) => {
                     const list = [];
@@ -280,17 +315,50 @@
                     }
                 }, (err) => console.error("Sinkronisasi karyawan bermasalah:", err));
 
-                // Sinkronisasi riwayat absen
+                // Sinkronisasi riwayat absen + Notifikasi untuk ADMIN
                 const unsubAtt = onSnapshot(attendanceRef, (snapshot) => {
                     const list = [];
+                    let newAttendanceData = null;
+
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added' && !isFirstAttendance) {
+                            const data = change.doc.data();
+                            // Kirim notifikasi jika pengguna saat ini adalah ADMIN
+                            if (currentUser && currentUser.role === 'admin') {
+                                newAttendanceData = data;
+                            }
+                        }
+                    });
+
                     snapshot.forEach(doc => list.push(doc.data()));
                     list.sort((a, b) => b.id.localeCompare(a.id));
                     setAttendance(list);
+
+                    if (isFirstAttendance) {
+                        isFirstAttendance = false;
+                    } else if (newAttendanceData) {
+                        triggerSystemNotification(
+                            `🌅 Presensi Baru: ${newAttendanceData.userName}`,
+                            `Mengirim absen ${newAttendanceData.type}: "${newAttendanceData.notes}"`
+                        );
+                    }
                 }, (err) => console.error("Sinkronisasi absensi bermasalah:", err));
 
-                // Sinkronisasi tugas lapangan
+                // Sinkronisasi tugas lapangan + Notifikasi untuk STAFF
                 const unsubTasks = onSnapshot(tasksRef, (snapshot) => {
                     const list = [];
+                    let newTaskData = null;
+
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added' && !isFirstTasks) {
+                            const data = change.doc.data();
+                            // Kirim notifikasi jika tugas didelegasikan ke staff bersangkutan
+                            if (currentUser && currentUser.id === data.assignedTo) {
+                                newTaskData = data;
+                            }
+                        }
+                    });
+
                     snapshot.forEach(doc => list.push(doc.data()));
                     if (list.length === 0) {
                         INITIAL_TASKS.forEach(async (t) => {
@@ -299,11 +367,32 @@
                     } else {
                         setTasks(list);
                     }
+
+                    if (isFirstTasks) {
+                        isFirstTasks = false;
+                    } else if (newTaskData) {
+                        triggerSystemNotification(
+                            `📋 Tugas Baru Ditugaskan!`,
+                            `Tugas: "${newTaskData.title}" - Batas waktu: ${newTaskData.deadline}`
+                        );
+                    }
                 }, (err) => console.error("Sinkronisasi tugas bermasalah:", err));
 
-                // Sinkronisasi papan pengumuman
+                // Sinkronisasi papan pengumuman + Notifikasi untuk SEMUA TIM
                 const unsubAnn = onSnapshot(announcementsRef, (snapshot) => {
                     const list = [];
+                    let newAnnData = null;
+
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === 'added' && !isFirstAnnouncements) {
+                            const data = change.doc.data();
+                            // Kirim notifikasi ke seluruh tim kecuali si pembuat pengumuman
+                            if (currentUser && currentUser.name !== data.author) {
+                                newAnnData = data;
+                            }
+                        }
+                    });
+
                     snapshot.forEach(doc => list.push(doc.data()));
                     list.sort((a, b) => b.id.localeCompare(a.id));
                     if (list.length === 0) {
@@ -313,6 +402,15 @@
                     } else {
                         setAnnouncements(list);
                     }
+
+                    if (isFirstAnnouncements) {
+                        isFirstAnnouncements = false;
+                    } else if (newAnnData) {
+                        triggerSystemNotification(
+                            `📢 Pengumuman Baru: ${newAnnData.title}`,
+                            `Oleh: ${newAnnData.author}`
+                        );
+                    }
                 }, (err) => console.error("Sinkronisasi pengumuman bermasalah:", err));
 
                 return () => {
@@ -321,7 +419,7 @@
                     unsubTasks();
                     unsubAnn();
                 };
-            }, [isCloudConnected]);
+            }, [isCloudConnected, currentUser]);
 
             // Handler Penulisan & Penghapusan Database Awan Terpusat
             const saveToCloud = async (collectionName, docId, data) => {
@@ -354,7 +452,7 @@
 
                 if (!isCloudConnected || !auth.currentUser) return;
                 try {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data);
+                    await setDoc(doc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data));
                 } catch(e) {
                     console.error("Gagal sinkron ke awan:", e);
                 }
@@ -562,7 +660,6 @@
                 }
             };
 
-            // PERBAIKAN: Menggunakan sintaks template literal ${} asli di HTM agar tidak mencetak kurung kurawal mentah di layar login
             return html`
                 <div class="min-h-screen bg-indigo-950 flex flex-col items-center justify-center p-4">
                     <div class="w-full max-w-sm bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
@@ -1216,9 +1313,6 @@
                 setUserToDelete(null);
             };
 
-            // PERBAIKAN:
-            // 1. Mengubah format {user.name} menjadi ${user.name} dkk agar tidak memunculkan tanda kurung kurawal mentah di layar HP Anda
-            // 2. Menghapus ketergantungan 'group-hover:opacity-100' pada tombol ganti foto profil, lalu menggantinya dengan badge kamera bulat mengapung (floating label) berwarna biru di pojok kanan bawah agar foto di HP langsung dan mudah diganti secara instan sekali sentuh
             return html`
                 <div class="space-y-6">
                     <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto relative overflow-hidden">
