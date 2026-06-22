@@ -341,6 +341,7 @@
                             `🌅 Presensi Baru: ${newAttendanceData.userName}`,
                             `Mengirim absen ${newAttendanceData.type}: "${newAttendanceData.notes}"`
                         );
+                        showNotification(`🌅 Presensi Baru: ${newAttendanceData.userName} melakukan absen ${newAttendanceData.type}!`);
                     }
                 }, (err) => console.error("Sinkronisasi absensi bermasalah:", err));
 
@@ -375,6 +376,7 @@
                             `📋 Tugas Baru Ditugaskan!`,
                             `Tugas: "${newTaskData.title}" - Batas waktu: ${newTaskData.deadline}`
                         );
+                        showNotification(`📋 Tugas Baru ditugaskan ke Anda: "${newTaskData.title}" (Batas: ${newTaskData.deadline})`);
                     }
                 }, (err) => console.error("Sinkronisasi tugas bermasalah:", err));
 
@@ -410,6 +412,7 @@
                             `📢 Pengumuman Baru: ${newAnnData.title}`,
                             `Oleh: ${newAnnData.author}`
                         );
+                        showNotification(`📢 Info Baru dari ${newAnnData.author}: "${newAnnData.title}"`);
                     }
                 }, (err) => console.error("Sinkronisasi pengumuman bermasalah:", err));
 
@@ -437,14 +440,14 @@
                 } else if (collectionName === 'attendance') {
                     setAttendance(prev => [data, ...prev.filter(a => a.id !== docId)]);
                 } else if (collectionName === 'tasks') {
-                    setTasks(prev => {
-                        const index = prev.findIndex(t => t.id === docId);
+                    setUsers(prev => {
+                        const index = prev.findIndex(u => u.id === docId);
                         if (index > -1) {
                             const copy = [...prev];
                             copy[index] = data;
                             return copy;
                         }
-                        return [data, ...prev];
+                        return [...prev, data];
                     });
                 } else if (collectionName === 'announcements') {
                     setAnnouncements(prev => [data, ...prev.filter(a => a.id !== docId)]);
@@ -452,7 +455,7 @@
 
                 if (!isCloudConnected || !auth.currentUser) return;
                 try {
-                    await setDoc(doc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data));
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', collectionName, docId), data);
                 } catch(e) {
                     console.error("Gagal sinkron ke awan:", e);
                 }
