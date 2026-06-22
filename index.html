@@ -475,7 +475,7 @@
                         `}
                     </main>
 
-                    <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) - FIX CRASH TAG -->
+                    <!-- STICKY BOTTOM NAVIGATION FOR MOBILE DEVICES (HP OPTIMIZED) -->
                     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-around items-center md:hidden z-50 shadow-2xl rounded-t-2xl glass">
                         <${MobileNavBtn} icon="fa-house" label="Home" active=${activeTab === 'dashboard'} onClick=${() => setActiveTab('dashboard')} />
                         <${MobileNavBtn} icon="fa-camera" label="Absen" active=${activeTab === 'absensi'} onClick=${() => setActiveTab('absensi')} />
@@ -528,6 +528,7 @@
                 }
             };
 
+            // PERBAIKAN: Menggunakan sintaks template literal ${} asli di HTM agar tidak mencetak kurung kurawal mentah di layar login
             return html`
                 <div class="min-h-screen bg-indigo-950 flex flex-col items-center justify-center p-4">
                     <div class="w-full max-w-sm bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl border border-white/10">
@@ -578,7 +579,7 @@
                         </form>
 
                         <button onClick=${() => setIsReg(!isReg)} class="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline text-center">
-                            {isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
+                            ${isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
                         </button>
 
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center flex flex-col items-center gap-2">
@@ -857,6 +858,7 @@
                 notify(`Absen ${type} berhasil dikirim ke Admin!`);
             };
 
+            // PERBAIKAN: Mengganti entitas kutip HTML mentah &ldquo; menjadi tanda kutip UTF-8 cantik (“ dan ”) secara langsung agar tidak memunculkan simbol aneh di panel admin
             return html`
                 <div class="space-y-6">
                     ${user.role === 'admin' ? html`
@@ -880,7 +882,7 @@
                                               📍 GPS: ${a.location?.lat ? a.location.lat.toFixed(5) : '0'}, ${a.location?.lng ? a.location.lng.toFixed(5) : '0'} (${a.location?.address || 'Lokasi Terdeteksi'})
                                           </p>
                                           <div class="p-3 bg-white border rounded-xl text-xs text-slate-600 mt-2 italic whitespace-pre-wrap">
-                                              &ldquo;${a.notes}&rdquo;
+                                              “${a.notes}”
                                           </div>
                                       </div>
                                   </div>
@@ -1037,8 +1039,8 @@
                         ${['Belum Mulai', 'Sedang Dikerjakan', 'Selesai'].map(colStatus => html`
                             <div key=${colStatus} class="bg-slate-100 p-4 rounded-3xl border flex flex-col min-h-[350px]">
                                 <div class="flex justify-between items-center mb-4">
-                                    <span class="font-black text-xs uppercase tracking-wider text-slate-600">{colStatus}</span>
-                                    <span class="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-bold border">{tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).length}</span>
+                                    <span class="font-black text-xs uppercase tracking-wider text-slate-600">${colStatus}</span>
+                                    <span class="bg-white/80 px-2 py-0.5 rounded-full text-[10px] font-bold border">${tasks.filter(t => (user.role === 'admin' ? true : t.assignedTo === user.id) && t.status === colStatus).length}</span>
                                 </div>
 
                                 <div class="space-y-3 flex-grow overflow-y-auto no-scrollbar">
@@ -1090,7 +1092,7 @@
                 const reader = new FileReader();
                 reader.onloadend = async () => {
                     if (userId) {
-                        const targetUser = users.find(u => u.id === userId);
+                        const targetUser = users.find(u => u.id === userId) || user;
                         if (targetUser) {
                             const updatedUser = { ...targetUser, avatar: reader.result };
                             await saveToCloud('users', userId, updatedUser);
@@ -1139,33 +1141,34 @@
                 setUserToDelete(null);
             };
 
+            // PERBAIKAN:
+            // 1. Mengubah format {user.name} menjadi ${user.name} dkk agar tidak memunculkan tanda kurung kurawal mentah di layar HP Anda
+            // 2. Menghapus ketergantungan 'group-hover:opacity-100' pada tombol ganti foto profil, lalu menggantinya dengan badge kamera bulat mengapung (floating label) berwarna biru di pojok kanan bawah agar foto di HP langsung dan mudah diganti secara instan sekali sentuh
             return html`
                 <div class="space-y-6">
                     <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center max-w-md mx-auto relative overflow-hidden">
-                        <div class="relative group cursor-pointer">
-                            <img src=${user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"} class="w-24 h-24 rounded-full object-cover border-4 border-indigo-900 shadow-lg mb-2" />
-                            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white text-xs opacity-0 group-hover:opacity-100 transition-all">
-                                <label class="cursor-pointer">
-                                    <i class="fas fa-camera text-base"></i>
-                                    <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, user.id)} class="hidden" />
-                                </label>
-                            </div>
+                        <div class="relative">
+                            <img src=${user.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"} class="w-24 h-24 rounded-full object-cover border-4 border-indigo-950 shadow-lg mb-2" />
+                            <label class="absolute bottom-2 right-0 bg-indigo-600 hover:bg-indigo-700 text-white w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-md cursor-pointer transition-all" title="Ganti Foto Profil">
+                                <i class="fas fa-camera text-xs"></i>
+                                <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, user.id)} class="hidden" />
+                            </label>
                         </div>
-                        <h3 class="font-black text-xl text-slate-800">{user.name}</h3>
-                        <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">{user.pos} • {user.div}</p>
+                        <h3 class="font-black text-xl text-slate-800">${user.name}</h3>
+                        <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">${user.pos} • ${user.div}</p>
                         
                         <div class="w-full text-left border-t mt-6 pt-4 space-y-3 text-xs font-semibold text-slate-600">
                             <div class="flex justify-between border-b pb-2">
                                 <span class="text-slate-400">ID KARYAWAN</span>
-                                <span class="text-slate-800">{user.id}</span>
+                                <span class="text-slate-800">${user.id}</span>
                             </div>
                             <div class="flex justify-between border-b pb-2">
                                 <span class="text-slate-400">EMAIL PERUSAHAAN</span>
-                                <span class="text-slate-800">{user.email}</span>
+                                <span class="text-slate-800">${user.email}</span>
                             </div>
                             <div class="flex justify-between border-b pb-2">
                                 <span class="text-slate-400">NOMOR WA</span>
-                                <span class="text-slate-800">{user.phone}</span>
+                                <span class="text-slate-800">${user.phone}</span>
                             </div>
                         </div>
 
@@ -1187,15 +1190,13 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             ${users.map(u => html`
                                 <div key=${u.id} class="bg-white p-4 rounded-3xl border flex items-center gap-3 shadow-sm">
-                                    <div class="relative group">
+                                    <div class="relative">
                                         <img src=${u.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"} class="w-12 h-12 rounded-full object-cover border" />
                                         ${user.role === 'admin' && html`
-                                            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white text-[9px] opacity-0 group-hover:opacity-100 transition-all">
-                                                <label class="cursor-pointer">
-                                                    <i class="fas fa-upload"></i>
-                                                    <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, u.id)} class="hidden" />
-                                                </label>
-                                            </div>
+                                            <label class="absolute bottom-0 right-0 bg-indigo-600 text-white w-5 h-5 rounded-full flex items-center justify-center border border-white shadow cursor-pointer">
+                                                <i class="fas fa-camera text-[8px]"></i>
+                                                <input type="file" accept="image/*" onChange=${(e) => handleImageUpload(e, u.id)} class="hidden" />
+                                            </label>
                                         `}
                                     </div>
                                     <div class="flex-1 min-w-0">
@@ -1345,7 +1346,7 @@
                         </button>
                     </div>
 
-                    <!-- KONEKSI INTEGRASI DATABASE AWAN OTOMATIS (SENSITIF TERHADAP KONEKSI ASLI) -->
+                    <!-- KONEKSI INTEGRASI DATABASE AWAN OTOMATIS -->
                     <div class="bg-gradient-to-r ${isCloudConnected ? 'from-emerald-600 to-teal-700' : 'from-amber-600 to-orange-700'} p-6 rounded-[2.5rem] text-white shadow-xl space-y-4">
                         <div class="flex justify-between items-start">
                             <div>
