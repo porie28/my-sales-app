@@ -42,21 +42,22 @@
         const { useState, useEffect, useRef } = window.preactHooks;
         const html = window.htm.bind(window.preact.h);
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'salestrack-v3-premium';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sales-track-project';
         let firebaseConfig = null;
         
         try {
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 firebaseConfig = JSON.parse(__firebase_config);
             } else {
-                // Fallback Firebase Sandbox Live Database terenkripsi gratis yang aktif & aman secara global
+                // Menanamkan Firebase Config milik Anda secara presisi dari screenshot terbaru
                 firebaseConfig = {
-                    apiKey: "AIzaSyAs_G5_H_DqP4D93n_T2987X-demoKey",
-                    authDomain: "salestrack-demo-d0b2f.firebaseapp.com",
-                    projectId: "salestrack-demo-d0b2f",
-                    storageBucket: "salestrack-demo-d0b2f.appspot.com",
-                    messagingSenderId: "583927495839",
-                    appId: "1:583927495839:web:a2b3c4d5e6f7g8h9i0j1k2"
+                    apiKey: "AIzaSyAAsjBZyvJEBLQHh3TEkEKLdOLcnHW67qM",
+                    authDomain: "sales-track-project.firebaseapp.com",
+                    projectId: "sales-track-project",
+                    storageBucket: "sales-track-project.firebasestorage.app",
+                    messagingSenderId: "768412633607",
+                    appId: "1:768412633607:web:6b4372f632df3217ebb8a2",
+                    measurementId: "G-67LEDHM84V"
                 };
             }
         } catch(e) {
@@ -185,7 +186,6 @@
                 setLocalData('st_announcements', announcements);
             }, [announcements]);
 
-            // Menampilkan notifikasi dalam aplikasi (bukan alert browser)
             const showNotification = (message, type = 'success') => {
                 setNotification({ message, type });
                 setTimeout(() => setNotification(null), 4000);
@@ -227,13 +227,11 @@
                     const list = [];
                     snapshot.forEach(doc => list.push(doc.data()));
                     if (list.length === 0) {
-                        // Seeding data awal jika cloud masih kosong
                         INITIAL_USERS.forEach(async (u) => {
                             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', u.id), u);
                         });
                     } else {
                         setUsers(list);
-                        // Update profil saat ini jika ada perubahan dari pusat
                         if (currentUser) {
                             const updatedMe = list.find(u => u.id === currentUser.id);
                             if (updatedMe) setCurrentUser(updatedMe);
@@ -572,7 +570,7 @@
                         </form>
 
                         <button onClick=${() => setIsReg(!isReg)} class="w-full mt-6 text-[10px] font-bold text-indigo-600 uppercase tracking-widest hover:underline text-center">
-                            ${isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
+                            {isReg ? 'Sudah Punya Akun? Login' : 'Karyawan Baru? Daftar'}
                         </button>
 
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center">
@@ -898,7 +896,7 @@
                                 </div>
 
                                 <div class="space-y-2">
-                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-wider">Bukti Foto Selfie (Wajib)</label>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Bukti Foto Selfie (Wajib)</label>
                                     <div class="aspect-video bg-slate-900 rounded-[2rem] overflow-hidden relative flex items-center justify-center border-4 border-slate-100 shadow-lg">
                                         ${camActive && html`<video ref=${videoRef} autoPlay playsInline class="w-full h-full object-cover" />`}
                                         ${photo && html`<img src=${photo} class="w-full h-full object-cover" />`}
@@ -920,7 +918,7 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Aktivitas/Keterangan Hari Ini <span class="text-rose-500">*</span></label>
+                                    <label class="block text-xs font-bold uppercase tracking-wider mb-1">Aktivitas/Keterangan Hari Ini <span class="text-rose-500">*</span></label>
                                     <textarea placeholder="Tulis aktivitas penugasan harian..." value=${notes} onInput=${e => setNotes(e.target.value)} class="w-full p-4 bg-slate-50 rounded-2xl h-24 text-sm border outline-none font-semibold focus:border-indigo-500 transition-all" required />
                                 </div>
 
@@ -946,7 +944,7 @@
                     title: form.title,
                     description: form.desc,
                     assignedTo: form.assignee,
-                    assignedName: targetUser ? targetUser.name : 'Unknown',
+                    assignedName: targetUser ? targetUser.name : 'Unknown Staff',
                     deadline: form.deadline,
                     status: 'Belum Mulai',
                     priority: form.priority
@@ -1000,13 +998,13 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Tugaskan Ke</label>
-                                    <select value=${form.assignee} onInput=${e => setForm({...form, assignee: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
+                                    <select value=${form.assignee} onChange=${e => setForm({...form, assignee: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
                                         ${users.filter(u => u.role === 'staff').map(u => html`<option key=${u.id} value=${u.id}>${u.name}</option>`)}
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Prioritas</label>
-                                    <select value=${form.priority} onInput=${e => setForm({...form, priority: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
+                                    <select value=${form.priority} onChange=${e => setForm({...form, priority: e.target.value})} class="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-bold text-indigo-900 outline-none">
                                         <option value="Tinggi">🔴 Tinggi</option>
                                         <option value="Sedang">🟡 Sedang</option>
                                         <option value="Rendah">🟢 Rendah</option>
@@ -1040,8 +1038,8 @@
                                                 `}
                                             </div>
                                             <div>
-                                                <h4 class="font-bold text-slate-800 text-xs">${task.title}</h4>
-                                                <p class="text-[10px] text-slate-400 mt-1 leading-relaxed">${task.description}</p>
+                                                <h4 class="font-bold text-slate-800 text-sm leading-snug">${task.title}</h4>
+                                                <p class="text-xs text-slate-500 mt-1">${task.description}</p>
                                             </div>
                                             <div class="border-t pt-2 text-[9px] font-bold text-slate-400 uppercase space-y-1">
                                                 <p>👤 PIC: <span class="text-indigo-900">${task.assignedName}</span></p>
